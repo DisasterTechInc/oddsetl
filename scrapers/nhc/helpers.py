@@ -1,13 +1,14 @@
 from sys import version_info
 import shutil
 import os
-from config import constants
+from config import logger_config, constants
 import mysql.connector
 import requests, zipfile, io
 from bs4 import BeautifulSoup
 import subprocess
 import uuid
 from azure.storage.blob import BlobClient
+import logging
 
 def cleanup_the_house():
     shutil.rmtree(f'{constants.data_dir}/')
@@ -75,7 +76,7 @@ def validate_inputs(params):
     return errors
 
 
-def find_files(url):
+def find_files(logger, url):
     soup = BeautifulSoup(requests.get(url).text, features="html.parser")
 
     links = []
@@ -85,7 +86,7 @@ def find_files(url):
     return links
 
 
-def get_active_storms(url):
+def get_active_storms(logger, url):
     """ Scrape NHC main TS page, get list of active tropical storms."""
 
     soup = BeautifulSoup(requests.get(url).text, features="html.parser")
@@ -104,7 +105,7 @@ def get_active_storms(url):
     return active_storms
 
 
-def get_storms(url):
+def get_storms(logger, url):
     """ Scrape NHC url, parse and retrieve Tropical storms from content."""
     
     soup = BeautifulSoup(requests.get(url).text, features="html.parser")
@@ -123,7 +124,7 @@ def get_storms(url):
     return output
 
 
-def get_links(url):
+def get_links(logger, url):
     """ Get list of links to download from NHC. """
 
     list_of_links = find_files(url)
@@ -138,7 +139,7 @@ def get_links(url):
     return forecasts, tracks
 
 
-def convert_to_geojson(params, scrapetype, directory, storm):
+def convert_to_geojson(logger, params, scrapetype, directory, storm):
     """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
 
     if scrapetype == 'active':
@@ -201,7 +202,7 @@ def convert_to_geojson(params, scrapetype, directory, storm):
             process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
             output, error = process.communicate()
         except:
-            print(f"couldn't convert {myfile}")
+            logger.info(f"couldn't convert {myfile}")
 
     data_list = []
     files = os.listdir(constants.output_dir)
@@ -212,7 +213,7 @@ def convert_to_geojson(params, scrapetype, directory, storm):
     return data_list
 
 
-def get_data_from_url(upload, to_download, directory):
+def get_data_from_url(logger, upload, to_download, directory):
     """Given a list of links to download, get data from urls."""
 
     if upload == 'active':
@@ -227,10 +228,10 @@ def get_data_from_url(upload, to_download, directory):
         z = zipfile.ZipFile(io.BytesIO(r.content))
         z.extractall(f'{directory}/{name}')
     
-    return to_download
+    return 
 
 
-def store_json_in_db(datafile, jsonout, token, connectionString, containerName, blobName):
+def store_json_in_db(logger, datafile, jsonout, token, connectionString, containerName, blobName):
     """Store json files in db."""
     
     blob = BlobClient.from_connection_string(conn_str=connectionString, container_name=containerName, blob_name=blobName)
@@ -238,10 +239,10 @@ def store_json_in_db(datafile, jsonout, token, connectionString, containerName, 
         blob.upload_blob(f, overwrite=True)
 
     headers = {"Authorization": "Bearer %s" %token, "content-type":"application/json"}
-    print(f"Upload successful to odds.{containerName}: {blobName}")
+    logger.info(f"Upload successful to odds.{containerName}: {blobName}")
 
 
-def insert_storms_in_mrt(creds, active_storms):
+def insert_storms_in_mrt(logger, creds, active_storms):
     """ Insert active storms in Master records table."""
     
     conn = mysql.connector.connect(
@@ -256,6 +257,7 @@ def insert_storms_in_mrt(creds, active_storms):
     ts = str(','.join(active_storms))
     q = f"INSERT INTO master_records_table (guid, active_ts) VALUES(%s, %s);"
     cursor.execute(q, (myid, ts,)) 
+    logger.info(f"Inserting {active_storms} into master_records_table")
     conn.commit()
     conn.close()
 

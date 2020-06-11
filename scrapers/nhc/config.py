@@ -11,3 +11,33 @@ _constants = {
 
 constants = (namedtuple('Constants', _constants)(**_constants))
 
+logger_config = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s-%(name)s-%(levelname)s: %(message)s'
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG',
+            'formatter': 'standard',
+            'stream': 'ext://sys.stdout'
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'level': 'INFO',
+            'formatter': 'standard',
+            'filename': 'logs.log',
+            'maxBytes': 20971520, 
+            'backupCount': 9,
+            'encoding': 'utf8'
+        }
+    },
+    'root': {
+        'level': 'INFO',
+        'handlers': ['console', 'file']
+    }
+}
