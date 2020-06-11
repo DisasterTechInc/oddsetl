@@ -10,12 +10,10 @@ import uuid
 from azure.storage.blob import BlobClient
 
 def cleanup_the_house():
-
     shutil.rmtree(f'{constants.data_dir}/')
     shutil.rmtree(f'{constants.output_dir}/')
 
 def make_dirs(tropical_storms):
-
     if os.path.exists(f'{constants.output_dir}/'):
         shutil.rmtree(f'{constants.output_dir}/')
     if os.path.exists(f'{constants.data_dir}/'):
@@ -32,48 +30,49 @@ def make_dirs(tropical_storms):
     return
 
 def validate_inputs(params):
-        errors = []
+    """Validate inputs. """
+    errors = []
 
-        if not version_info[0] > 2:
-            errors.append('Python 3+ is required to run pipeline!')
+    if not version_info[0] > 2:
+        errors.append('Python 3+ is required to run pipeline!')
 
-        if type(params['main_args']['upload']) != bool:
-            errors.append('upload argument should be True or False')
+    if type(params['main_args']['upload']) != bool:
+        errors.append('upload argument should be True or False')
 
-        if type(params['main_args']['year']) != str:
-            errors.append('year argument should be a string')
+    if type(params['main_args']['year']) != str:
+        errors.append('year argument should be a string')
 
-        if int(params['main_args']['year']) < 2008:
-            errors.append('year should be 2008 or later')
+    if int(params['main_args']['year']) < 2008:
+        errors.append('year should be 2008 or later')
 
-        if int(params['main_args']['year']) > 2020:
-            errors.append('year should be 2020 or earlier')
+    if int(params['main_args']['year']) > 2020:
+        errors.append('year should be 2020 or earlier')
 
-        if type(params['main_args']['storms_to_get']) != str:
-            errors.append('storms_to_get argument should be a string')
+    if type(params['main_args']['storms_to_get']) != str:
+        errors.append('storms_to_get argument should be a string')
 
-        erroneous_storms = []
-        if params['main_args']['storms_to_get'] != '':
-            for storm in [params['main_args']['storms_to_get']]:
-                if storm.upper() not in params['all_nhc_storms']:
-                    erroneous_storms.append(storm)
-                    errors.append(f"You are requesting data for storms that don't exist in NHC database: {erroneous_storms}!")
+    erroneous_storms = []
+    if params['main_args']['storms_to_get'] != '':
+        for storm in [params['main_args']['storms_to_get']]:
+            if storm.upper() not in params['all_nhc_storms']:
+                erroneous_storms.append(storm)
+                errors.append(f"You are requesting data for storms that don't exist in NHC database: {erroneous_storms}!")
 
-        if type(params['main_args']['scrapetype']) != str:
-            errors.append("scrapetype should be a string, either 'all' or 'latest' ")
+    if type(params['main_args']['scrapetype']) != str:
+        errors.append("scrapetype should be a string, either 'all' or 'active' ")
 
-        if params['main_args']['scrapetype'] not in ["latest","all"]:
-            errors.append("scrapetype should be either 'all' or 'latest' ")
+    if params['main_args']['scrapetype'] not in ["active","all"]:
+        errors.append("scrapetype should be either 'all' or 'active' ")
 
-        if type(params['main_args']['odds_container']) != str:
-            errors.append('odds_container should be a string')
+    if type(params['main_args']['odds_container']) != str:
+        errors.append('odds_container should be a string')
 
-        if params['main_args']['odds_container'] not in ["odds", "testcontainer", "nhc", "demos"]:
-            errors.append('odds_container chosen is not allowed, please use "odds", "testcontainer", "nhc" or "demos" ')
-        if errors:
-            print(f'Error: {errors}')
+    if params['main_args']['odds_container'] not in ["odds", "testcontainer", "nhc", "demos"]:
+        errors.append('odds_container chosen is not allowed, please use "odds", "testcontainer", "nhc" or "demos" ')
+    if errors:
+        print(f'Error: {errors}')
 
-        return errors
+    return errors
 
 
 def find_files(url):
@@ -87,6 +86,8 @@ def find_files(url):
 
 
 def get_active_storms(url):
+    """ Scrape NHC main TS page, get list of active tropical storms."""
+
     soup = BeautifulSoup(requests.get(url).text, features="html.parser")
 
     contents = []
@@ -104,6 +105,8 @@ def get_active_storms(url):
 
 
 def get_storms(url):
+    """ Scrape NHC url, parse and retrieve Tropical storms from content."""
+    
     soup = BeautifulSoup(requests.get(url).text, features="html.parser")
 
     contents = []
@@ -121,6 +124,7 @@ def get_storms(url):
 
 
 def get_links(url):
+    """ Get list of links to download from NHC. """
 
     list_of_links = find_files(url)
     forecasts = []
@@ -135,9 +139,10 @@ def get_links(url):
 
 
 def convert_to_geojson(params, scrapetype, directory, storm):
-   
-    if scrapetype == 'latest':
-        prefix = 'latest_'
+    """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
+
+    if scrapetype == 'active':
+        prefix = 'active_'
     else:
         prefix = ''
 
@@ -149,7 +154,7 @@ def convert_to_geojson(params, scrapetype, directory, storm):
 
     files = [fi for fi in listOfFiles if fi.endswith(".kml") or fi.endswith(".shp")]
     latest_files = []
-    if scrapetype == 'latest':
+    if scrapetype == 'active':
         nums = []
         for myfile in files:
             if '.shp' in myfile:
@@ -173,12 +178,12 @@ def convert_to_geojson(params, scrapetype, directory, storm):
                     if str(maxnums) in str(myfile.split('/')[-1].split("-")[0].split("-")[-1]):
                         latest_files.append(myfile)
   
-    if scrapetype =='latest':
+    if scrapetype =='active':
         files = latest_files
 
     for myfile in files:
         newfile = None
-        if scrapetype == 'latest':
+        if scrapetype == 'active':
             newfile = myfile.split('/')[-1].split("_")[-1]
         else:
             newfile = myfile.split('/')[-1]
@@ -208,8 +213,9 @@ def convert_to_geojson(params, scrapetype, directory, storm):
 
 
 def get_data_from_url(upload, to_download, directory):
+    """Given a list of links to download, get data from urls."""
 
-    if upload == 'latest':
+    if upload == 'active':
         if 'tracks' in directory:
             to_download = to_download[-2:] 
         else:
@@ -225,16 +231,19 @@ def get_data_from_url(upload, to_download, directory):
 
 
 def store_json_in_db(datafile, jsonout, token, connectionString, containerName, blobName):
+    """Store json files in db."""
+    
     blob = BlobClient.from_connection_string(conn_str=connectionString, container_name=containerName, blob_name=blobName)
     with open(datafile, 'rb') as f:
         blob.upload_blob(f, overwrite=True)
 
     headers = {"Authorization": "Bearer %s" %token, "content-type":"application/json"}
-    #response = requests.put(f"https://odds.disastertech.com/", data=str(jsonout).replace("\'","\""), headers=headers, verify=False)
     print(f"Upload successful to odds.{containerName}: {blobName}")
 
 
 def insert_storms_in_mrt(creds, active_storms):
+    """ Insert active storms in Master records table."""
+    
     conn = mysql.connector.connect(
             host=creds['azure']['host'],
             user=creds['azure']['user'],

@@ -53,7 +53,7 @@ class Pipeline():
              
             helpers.insert_storms_in_mrt(creds, active_tropical_storms)
             
-            if self.scrapetype == 'latest':
+            if self.scrapetype == 'active':
                 tropical_storms = active_tropical_storms
                 helpers.insert_storms_in_mrt(creds, active_tropical_storms)
            
