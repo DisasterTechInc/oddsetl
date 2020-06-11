@@ -2,7 +2,6 @@ import os
 from config import constants
 import mysql.connector
 import requests, zipfile, io
-#from io import BytesIO
 from bs4 import BeautifulSoup
 import subprocess
 import uuid
@@ -153,7 +152,6 @@ def get_data_from_url(upload, to_download, directory):
     for link in to_download:
         name = link.split("/")[-1].split(".")[0]
         r = requests.get(link)
-        #if ".zip" or ".kmz" in link:
         z = zipfile.ZipFile(io.BytesIO(r.content))
         z.extractall(f'{directory}/{name}')
     
@@ -179,7 +177,6 @@ def insert_storms_in_mrt(creds, active_storms):
 	    port=3306)
 
     cursor = conn.cursor()
-    #myid = 'fbdb0555-fff8-4383-a46e-7c20d977c173'
     myid = str(uuid.uuid4())
     ts = str(','.join(active_storms))
     q = f"INSERT INTO master_records_table (guid, active_ts) VALUES(%s, %s);"
