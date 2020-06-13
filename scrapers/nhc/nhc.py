@@ -2,6 +2,7 @@ from config import logger_config, constants
 import logging
 import argparse
 import yaml
+import datetime
 import helpers
 import os
 import logging.config
@@ -48,6 +49,18 @@ class Pipeline():
             cp_weather_outlook = helpers.get_weather_outlooks(url="https://www.nhc.noaa.gov/text/refresh/HFOTWOCP+shtml/111731_HFOTWOCP.shtml")
             
             weather_outlooks = {'Atlantic': al_weather_outlook, "Central North Pacific": cp_weather_outlook, "Eastern North Pacific": ep_weather_outlook}
+            filename = f"{datetime.datetime.now().replace(microsecond=0).isoformat()}_weather_outlooks"
+            helpers.store_in_json(weather_outlooks, filename)
+
+            if self.upload:
+                helpers.store_blob_in_odds(logger,
+                        params,
+                        datafile = f"{constants.output_dir}/{filename}.json",
+                        token = creds['TOKEN'],
+                        connectionString = creds['connectionString'],
+                        containerName = self.odds_container,
+                        blobName = f"{filename}.json")
+
             # get active storms
             tropical_storms = helpers.get_active_storms(logger, url="https://www.nhc.noaa.gov/cyclones/")
             tropical_storms = {"Atlantic": True} 
@@ -67,7 +80,6 @@ class Pipeline():
 
             if tropical_storms != [""]:
                 for tropical_storm in tropical_storms:
-                    print(tropical_storm)
                     code = params[str(self.year)][tropical_storm.upper()]['code']
                     
                     forecasts, tracks = helpers.get_links(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast_results.php?id={code}&year={self.year}&name=Tropical%{self.year[0:2]}Storm%{self.year[2:4]}{tropical_storm}")
@@ -99,7 +111,7 @@ class Pipeline():
                             for datafile in data_lst:
                                 features = helpers.get_features(params, tropical_storm.upper(), f"{constants.output_dir}/{datafile}")
                                 helpers.insert_in_db(logger, creds, features)
-                                helpers.store_json_in_odds(logger, 
+                                helpers.store_blob_in_odds(logger, 
                                     params,
                                     datafile = f"{constants.output_dir}/{datafile}", 
                                     token = creds['TOKEN'], 

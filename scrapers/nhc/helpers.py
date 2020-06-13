@@ -5,6 +5,7 @@ import datetime as dt
 import os
 from config import logger_config, constants
 import geojson
+import json
 import mysql.connector
 import requests, zipfile, io
 import reverse_geocoder as rg
@@ -201,7 +202,7 @@ def get_weather_outlooks(url):
 
     return contents 
 
-def store_json_in_odds(logger, params, datafile, token, connectionString, containerName, blobName):
+def store_blob_in_odds(logger, params, datafile, token, connectionString, containerName, blobName):
     """Store json files in db."""
     
     blob = BlobClient.from_connection_string(conn_str=connectionString, container_name=containerName, blob_name=blobName)
@@ -256,6 +257,13 @@ def get_features(params, tropical_storm, datafile):
             }
     
     return features_dict
+
+def store_in_json(data, filename):
+    
+    with open(f"{constants.output_dir}/{filename}.json", 'w') as f:
+        json.dump(data, f)
+
+    return
 
 def insert_in_db(logger, creds, features):
     """ Insert active storms in odds table."""
