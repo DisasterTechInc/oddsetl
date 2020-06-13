@@ -31,17 +31,17 @@ class Pipeline():
 
         errors = helpers.validate_inputs(params)
         if not errors: 
-            powerout = helpers.get_data(url=f"https://poweroutage.us/api/json_1_4/getcityoutageinfo?key={creds['powkey']}",
+            powerout, filename = helpers.get_data(url=f"https://poweroutage.us/api/json_1_4/getcityoutageinfo?key={creds['powkey']}",
                     county=self.county)    
           
             if powerout:
                 if self.upload:
                     helpers.store_json_in_odds(params,
-                        datafile = f'{constants.output_dir}/powout_{self.county}.geojson', 
+                        datafile = f'{constants.output_dir}/{filename}.geojson', 
                         token = creds['TOKEN'], 
                         connectionString = creds['connectionString'], 
                         containerName = self.odds_container, 
-                        blobName = f'powout_{self.county}.geojson')
+                        blobName = f'{filename}.geojson')
 
 
 if __name__ == "__main__":

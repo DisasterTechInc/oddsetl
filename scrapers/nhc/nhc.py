@@ -63,13 +63,11 @@ class Pipeline():
 
             # get active storms
             tropical_storms = helpers.get_active_storms(logger, url="https://www.nhc.noaa.gov/cyclones/")
-            tropical_storms = {"Atlantic": True} 
 
             if all(value is False for value in tropical_storms.values()):
                 logger.info(" There are currently no active tropical storms in the Atlantic, Central North Pacific or Eastern North Pacific at this time.")
-                tropical_storms = [""] 
+                tropical_storms = [] 
             else:
-                tropical_storms = ["arthur"]
                 active_ts = str(','.join(tropical_storms))
                 logger.info(f'Active tropical storms are: {tropical_storms}')
 
@@ -78,7 +76,7 @@ class Pipeline():
 
             helpers.make_dirs(tropical_storms)
 
-            if tropical_storms != [""]:
+            if tropical_storms:
                 for tropical_storm in tropical_storms:
                     code = params[str(self.year)][tropical_storm.upper()]['code']
                     
@@ -110,6 +108,7 @@ class Pipeline():
                             data_lst = datatypes[key]
                             for datafile in data_lst:
                                 features = helpers.get_features(params, tropical_storm.upper(), f"{constants.output_dir}/{datafile}")
+                                filename = f"{datafile.split('_')[0]}_{features['datadate_iso']}_{'_'.join(datafile.split('_')[1:])}"
                                 helpers.insert_in_db(logger, creds, features)
                                 helpers.store_blob_in_odds(logger, 
                                     params,
@@ -117,7 +116,7 @@ class Pipeline():
                                     token = creds['TOKEN'], 
                                     connectionString = creds['connectionString'], 
                                     containerName = self.odds_container, 
-                                    blobName = f"{features['datadate_iso']}_{datafile}.geojson")
+                                    blobName = f"{filename}.geojson")
 
             helpers.cleanup_the_house()
 

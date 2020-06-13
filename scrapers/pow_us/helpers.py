@@ -5,6 +5,7 @@ import urllib.request, json
 import urllib, json
 from urllib.request import urlopen
 from azure.storage.blob import BlobClient
+import datetime
 
 def get_jsonparsed_data(url):
     response = urlopen(url)
@@ -19,11 +20,12 @@ def get_data(url, county):
         for key, value in elem.items():
             if value == county:
                 out.append(elem)
-   
+    
+    currentdate = datetime.datetime.now().replace(microsecond=0).isoformat()
     if out:
-        with open(f"{constants.output_dir}/powout_{county}.geojson", 'w') as f:
+        with open(f"{constants.output_dir}/powout_{currentdate}_{county}.geojson", 'w') as f:
             json.dump(out, f)
-        return out 
+        return out, f"powout_{currentdate}_{county}" 
 
 def validate_inputs(params):
     errors = []
