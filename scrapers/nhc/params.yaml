@@ -1570,3 +1570,29 @@ num_mappings:
     '020': 20
     '021': 21
     '022': 22
+
+datatypes_mappings:
+        'WW': ''
+        'CONE': 'probably path of the storm center: cone of uncertainty'
+        'TRACK': ''
+        'lin': 'projected path of storm eye'
+        'pts': 'points where the hurricane will be every 12 hours over the next 5 days'
+        'pgn': 'polygons for 3-day and 5-day projection cones'
+        'wwlin': 'lines depicting coastal areas under hurricane and tropical storm watches and warnings'
+
+months:
+        'Jan': 1
+        'Feb': 2
+        'Mar': 3
+        'Apr': 4
+        'May': 5
+        'Jun': 6 
+        'Jul': 7
+        'Aug': 8
+        'Sep': 9
+        'Oct': 10
+        'Nov': 11
+        'Dec': 12
+
+
+

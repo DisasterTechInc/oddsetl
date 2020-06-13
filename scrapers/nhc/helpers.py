@@ -1,9 +1,13 @@
 from sys import version_info
 import shutil
+import pytz
+import datetime as dt
 import os
 from config import logger_config, constants
+import geojson
 import mysql.connector
 import requests, zipfile, io
+import reverse_geocoder as rg
 from bs4 import BeautifulSoup
 import subprocess
 import uuid
@@ -15,6 +19,7 @@ def cleanup_the_house():
     shutil.rmtree(f'{constants.output_dir}/')
 
 def make_dirs(tropical_storms):
+
     if os.path.exists(f'{constants.output_dir}/'):
         shutil.rmtree(f'{constants.output_dir}/')
     if os.path.exists(f'{constants.data_dir}/'):
@@ -24,9 +29,10 @@ def make_dirs(tropical_storms):
     os.mkdir(f'{constants.data_dir}/')
     
     for tropical_storm in tropical_storms:
-        os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}')
-        os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}/forecasts')
-        os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}/tracks')
+        if not os.path.exists(f'{constants.data_dir}/{tropical_storm.lower()}'):
+            os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}')
+            os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}/forecasts')
+            os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}/tracks')
 
     return
 
@@ -53,17 +59,11 @@ def validate_inputs(params):
         errors.append('storms_to_get argument should be a string')
 
     erroneous_storms = []
-    if params['main_args']['storms_to_get'] != '':
+    if params['main_args']['storms_to_get'] not in ["active", "all"]:
         for storm in [params['main_args']['storms_to_get']]:
             if storm.upper() not in params['all_nhc_storms']:
                 erroneous_storms.append(storm)
                 errors.append(f"You are requesting data for storms that don't exist in NHC database: {erroneous_storms}!")
-
-    if type(params['main_args']['scrapetype']) != str:
-        errors.append("scrapetype should be a string, either 'all' or 'active' ")
-
-    if params['main_args']['scrapetype'] not in ["active","all"]:
-        errors.append("scrapetype should be either 'all' or 'active' ")
 
     if type(params['main_args']['odds_container']) != str:
         errors.append('odds_container should be a string')
@@ -71,7 +71,7 @@ def validate_inputs(params):
     if params['main_args']['odds_container'] not in ["odds", "testcontainer", "nhc", "demos"]:
         errors.append('odds_container chosen is not allowed, please use "odds", "testcontainer", "nhc" or "demos" ')
     if errors:
-        print(f'Error: {errors}')
+        logger.info(f'Error: {errors}')
 
     return errors
 
@@ -127,9 +127,8 @@ def get_storms(logger, url):
 def get_links(logger, url):
     """ Get list of links to download from NHC. """
 
-    list_of_links = find_files(url)
-    forecasts = []
-    tracks = []
+    list_of_links = find_files(logger, url)
+    forecasts, tracks = [], []
     for link in list_of_links:
         if '.zip' in link:
             forecasts.append(f'https://www.nhc.noaa.gov/gis/forecast/archive/{link}')
@@ -139,13 +138,8 @@ def get_links(logger, url):
     return forecasts, tracks
 
 
-def convert_to_geojson(logger, params, scrapetype, directory, storm):
+def convert_to_geojson(logger, params, directory, storm):
     """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
-
-    if scrapetype == 'active':
-        prefix = 'active_'
-    else:
-        prefix = ''
 
     listOfFiles = list()
     for (dirpath, dirnames, filenames) in os.walk(directory):
@@ -154,49 +148,16 @@ def convert_to_geojson(logger, params, scrapetype, directory, storm):
     listOfFiles = list(set(listOfFiles))
 
     files = [fi for fi in listOfFiles if fi.endswith(".kml") or fi.endswith(".shp")]
-    latest_files = []
-    if scrapetype == 'active':
-        nums = []
-        for myfile in files:
-            if '.shp' in myfile:
-                num = myfile.split('/')[-1].split("-")[-1].split("_")[0]
-            else:
-                num = myfile.split('/')[-1].split("_")[1].split("_")[0]
-            suffixes = ["A", "Adv", "adv"]
-            for suffix in suffixes:
-                if suffix in num:
-                    num = num.replace(suffix,"")
-            newnum = params['num_mappings'][num] 
-            nums.append(newnum)
-        
-        if nums:
-            maxnums = max(list(set(nums)))
-            for myfile in files:
-                if '.shp' in myfile:
-                    if str(maxnums) in str(myfile.split('/')[-1].split("_")[0].split("-")[-1]):
-                        latest_files.append(myfile)
-                elif ".kml" in myfile:
-                    if str(maxnums) in str(myfile.split('/')[-1].split("-")[0].split("-")[-1]):
-                        latest_files.append(myfile)
   
-    if scrapetype =='active':
-        files = latest_files
-
     for myfile in files:
-        newfile = None
-        if scrapetype == 'active':
-            newfile = myfile.split('/')[-1].split("_")[-1]
-        else:
-            newfile = myfile.split('/')[-1]
+        newfile = myfile.split('/')[-1]
 
         if '.kml' in myfile:
-            os.rename(myfile, f"{constants.output_dir}/nhc_{prefix}{storm}_{newfile}")
-            myfile = f"{constants.output_dir}/nhc_{prefix}{storm}_{newfile}"
+            os.rename(myfile, f"{constants.output_dir}/nhc_{storm}_{newfile}")
+            myfile = f"{constants.output_dir}/nhc_{storm}_{newfile}"
             bashCommand = f"k2g {myfile} {constants.output_dir}"
         elif ".shp" in myfile:
-            # myfile.split('/')[-1].split('_')[-1].split('.shp')[0]
-            # {constants.output_dir}/{prefix}{storm}_{myfile.split('/')[-1].split('_')[-1].split('.shp')[0]}.geojson"
-            filename = f"{constants.output_dir}/nhc_{prefix}{storm}_{newfile}"
+            filename = f"{constants.output_dir}/nhc_{storm}_{newfile}"
             bashCommand = f"ogr2ogr -f GeoJSON {filename} {myfile}"
         try:
             process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
@@ -230,8 +191,17 @@ def get_data_from_url(logger, upload, to_download, directory):
     
     return 
 
+def get_weather_outlooks(url):
+    
+    soup = BeautifulSoup(requests.get(url).text, features="html.parser")
+    contents = []
+    for element in soup.find_all('pre'):
+        elem = element.get_text().replace('\n', ' ').replace('\r', '') 
+        contents.append(elem)
 
-def store_json_in_db(logger, datafile, jsonout, token, connectionString, containerName, blobName):
+    return contents 
+
+def store_json_in_odds(logger, params, datafile, token, connectionString, containerName, blobName):
     """Store json files in db."""
     
     blob = BlobClient.from_connection_string(conn_str=connectionString, container_name=containerName, blob_name=blobName)
@@ -241,10 +211,54 @@ def store_json_in_db(logger, datafile, jsonout, token, connectionString, contain
     headers = {"Authorization": "Bearer %s" %token, "content-type":"application/json"}
     logger.info(f"Upload successful to odds.{containerName}: {blobName}")
 
+def reverseGeocode(coordinates): 
+    result = rg.search(coordinates) 
+      
+    return result
 
-def insert_storms_in_mrt(logger, creds, active_storms):
-    """ Insert active storms in Master records table."""
+def get_features(params, tropical_storm, datafile):
+    """."""    
     
+    features_dict = {}
+    with open(datafile) as f:
+        gj = geojson.load(f)
+    features = gj['features'][0]
+    
+    if 'WW' in datafile:
+        datadate = features['properties']['advisoryDate']
+        location = reverseGeocode(coordinates=[features['geometry']['coordinates'][0][1], features['geometry']['coordinates'][0][0]])
+
+    elif 'TRACK' in datafile:
+        datadate = features['properties']['pubAdvTime']
+        location = reverseGeocode(coordinates=[features['geometry']['coordinates'][0][1], features['geometry']['coordinates'][0][0]])
+
+    #elif 'pts' in datafile:
+    #    print(features)
+
+    elif 'CONE' in datafile:
+        datadate = features['properties']['advisoryDate']
+        location = reverseGeocode(coordinates=[features['geometry']['coordinates'][0][0][1], features['geometry']['coordinates'][0][0][0]])
+
+    datadate_iso = f"{datadate.split(' ')[6]}-{params['months'][datadate.split(' ')[4]]}-{datadate.split(' ')[5]}"
+    #datadate_time = ':'.join(datadate.split(' ')[0:1])
+    
+    features_dict = {
+            'state': location[0]['admin1'],
+            'county': location[0]['admin2'],
+            'storm_name': tropical_storm,
+            'storm_region': params[params['main_args']['year']][tropical_storm]['code'][0:2],
+            'storm_code': params[params['main_args']['year']][tropical_storm]['code'],
+            'storm_type': params[params['main_args']['year']][tropical_storm]['type'],
+            'datadate_iso': datadate_iso,
+            'year': datadate.split(' ')[6],
+            #'timezone': 'UTC',
+            'datatype': datafile.split("_")[-1].split(".geojson")[0],
+            }
+    
+    return features_dict
+
+def insert_in_db(logger, creds, features):
+    """ Insert active storms in odds table."""
     conn = mysql.connector.connect(
             host=creds['azure']['host'],
             user=creds['azure']['user'],
@@ -253,11 +267,9 @@ def insert_storms_in_mrt(logger, creds, active_storms):
 	    port=3306)
 
     cursor = conn.cursor()
-    myid = str(uuid.uuid4())
-    ts = str(','.join(active_storms))
-    q = f"INSERT INTO master_records_table (guid, active_ts) VALUES(%s, %s);"
-    cursor.execute(q, (myid, ts,)) 
-    logger.info(f"Inserting {active_storms} into master_records_table")
+    guid = str(uuid.uuid4())
+    q = f"INSERT INTO {creds['azure']['oddsdb_table']} (guid, datadate_iso, county, state, storm_name, storm_code, storm_type, year, storm_region, datatype) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);" 
+    cursor.execute(q, (guid, features['datadate_iso'], features['county'], features['state'], features['storm_name'], features['storm_code'], features['storm_type'], features['year'], features['storm_region'], features['datatype'],)) 
     conn.commit()
     conn.close()
 
