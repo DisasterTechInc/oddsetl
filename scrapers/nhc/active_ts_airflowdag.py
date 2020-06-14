@@ -32,7 +32,7 @@ t1 = BashOperator(
 
 t2 = BashOperator(
   task_id='t2',
-  bash_command="python3 home/iflament/oddsetl/scrapers/nhc/nhc.py --storms_to_get='' --odds_container='nhc' --year='2020' --scrapetype='active'",
+  bash_command="python3 home/iflament/oddsetl/scrapers/nhc/nhc.py --storms_to_get='active' --odds_container='nhc' --year='2020'",
   dag=dag,
 )
 

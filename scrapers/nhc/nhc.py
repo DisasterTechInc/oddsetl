@@ -43,17 +43,19 @@ class Pipeline():
         errors = helpers.validate_inputs(params)
 
         if not errors:
-            # get weather outlooks
-            al_weather_outlook = helpers.get_weather_outlooks(url="https://www.nhc.noaa.gov/text/refresh/MIATWOAT+shtml/111733_MIATWOAT.shtml")
-            ep_weather_outlook = helpers.get_weather_outlooks(url="https://www.nhc.noaa.gov/text/refresh/MIATWOEP+shtml/111720_MIATWOEP.shtml")
-            cp_weather_outlook = helpers.get_weather_outlooks(url="https://www.nhc.noaa.gov/text/refresh/HFOTWOCP+shtml/111731_HFOTWOCP.shtml")
+            filename = None
+            if self.year == "2020":
+                # get weather outlooks
+                al_weather_outlook = helpers.get_weather_outlooks(url="https://www.nhc.noaa.gov/text/refresh/MIATWOAT+shtml/111733_MIATWOAT.shtml")
+                ep_weather_outlook = helpers.get_weather_outlooks(url="https://www.nhc.noaa.gov/text/refresh/MIATWOEP+shtml/111720_MIATWOEP.shtml")
+                cp_weather_outlook = helpers.get_weather_outlooks(url="https://www.nhc.noaa.gov/text/refresh/HFOTWOCP+shtml/111731_HFOTWOCP.shtml")
             
-            weather_outlooks = {'Atlantic': al_weather_outlook, "Central North Pacific": cp_weather_outlook, "Eastern North Pacific": ep_weather_outlook}
-            filename = f"{datetime.datetime.now().replace(microsecond=0).isoformat()}_weather_outlooks"
-            helpers.store_in_json(weather_outlooks, filename)
+                weather_outlooks = {'Atlantic': al_weather_outlook, "Central North Pacific": cp_weather_outlook, "Eastern North Pacific": ep_weather_outlook}
+                filename = f"{datetime.datetime.now().replace(microsecond=0).isoformat()}_weather_outlooks"
+                helpers.store_in_json(weather_outlooks, filename)
 
-            if self.upload:
-                helpers.store_blob_in_odds(logger,
+                if self.upload:
+                    helpers.store_blob_in_odds(logger,
                         params,
                         datafile = f"{constants.output_dir}/{filename}.json",
                         token = creds['TOKEN'],

@@ -139,7 +139,7 @@ def get_links(logger, url):
     return forecasts, tracks
 
 
-def convert_to_geojson(logger, params, directory, storm):
+def convert_to_geojson(logger, params, directory, storm, is_active):
     """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
 
     listOfFiles = list()
@@ -147,19 +147,48 @@ def convert_to_geojson(logger, params, directory, storm):
         listOfFiles += [os.path.join(dirpath, myfile) for myfile in filenames]
     
     listOfFiles = list(set(listOfFiles))
-
     files = [fi for fi in listOfFiles if fi.endswith(".kml") or fi.endswith(".shp")]
-  
-    for myfile in files:
-        newfile = myfile.split('/')[-1]
 
+    last_active_files = []
+    if not is_active:
+        # get last file of hurricane, for hurricanes that ended, to extract the end date and calculate "progress" metric.
+        nums = []
+        for myfile in files:
+            if '.shp' in myfile:
+                num = myfile.split('/')[-1].split("-")[-1].split("_")[0]
+            else:
+                num = myfile.split('/')[-1].split("_")[1].split("_")[0]
+       
+            suffixes = ["A", "Adv", "adv"]
+            for suffix in suffixes:
+                if suffix in num:
+                    num = num.replace(suffix,"")
+            newnum = params['num_mappings'][num] 
+            nums.append(newnum)
+        
+            if nums:
+                maxnums = max(list(set(nums)))
+            
+            for myfile in files:
+                if '.shp' in myfile:
+                    if str(maxnums) in str(myfile.split('/')[-1].split("_")[0].split("-")[-1]):
+                        last_active_files.append(myfile)
+                elif ".kml" in myfile:
+                    if str(maxnums) in str(myfile.split('/')[-1].split("-")[0].split("-")[-1]):
+                        last_active_files.append(myfile)
+                else:
+                    logger.info(f"No kml or shp file in {myfile}")
+
+    files = files + last_active_files
+    for myfile in files:
+        #newfile = myfile.split('/')[-1]
         if '.kml' in myfile:
-            os.rename(myfile, f"{constants.output_dir}/nhc_{storm}_{newfile}")
-            myfile = f"{constants.output_dir}/nhc_{storm}_{newfile}"
+            #os.rename(myfile, f"{constants.output_dir}/nhc_{storm}_{newfile}")
+            #myfile = f"{constants.output_dir}/nhc_{storm}_{newfile}"
             bashCommand = f"k2g {myfile} {constants.output_dir}"
         elif ".shp" in myfile:
-            filename = f"{constants.output_dir}/nhc_{storm}_{newfile}"
-            bashCommand = f"ogr2ogr -f GeoJSON {filename} {myfile}"
+            #filename = f"{constants.output_dir}/nhc_{storm}_{newfile}"
+            bashCommand = f"ogr2ogr -f GeoJSON {constants.output_dir}/{myfile.split('/')[-1]} {myfile}"
         try:
             process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
             output, error = process.communicate()
@@ -171,8 +200,20 @@ def convert_to_geojson(logger, params, directory, storm):
     for myfile in files:
         if ".geojson" in myfile:
             data_list.append(myfile)
+    
+    return data_list, last_active_files
 
-    return data_list
+
+def get_last_active_day(params, tropical_storm, last_active_tracks):
+    for datafile in last_active_tracks:
+        features = get_features(params, tropical_storm, datafile)
+    
+    print(features)
+    print(last_active_tracks)
+    import pdb;pdb.set_trace()
+    last_active_day = features['datadate_iso']
+
+    return last_active_day 
 
 
 def get_data_from_url(logger, upload, to_download, directory):
@@ -193,7 +234,6 @@ def get_data_from_url(logger, upload, to_download, directory):
     return 
 
 def get_weather_outlooks(url):
-    
     soup = BeautifulSoup(requests.get(url).text, features="html.parser")
     contents = []
     for element in soup.find_all('pre'):
@@ -214,36 +254,36 @@ def store_blob_in_odds(logger, params, datafile, token, connectionString, contai
 
 def reverseGeocode(coordinates): 
     result = rg.search(coordinates) 
-      
     return result
 
 def get_features(params, tropical_storm, datafile):
     """."""    
     
     features_dict = {}
+    gj = None
     with open(datafile) as f:
-        gj = geojson.load(f)
-    features = gj['features'][0]
+        try:
+            gj = geojson.load(f)
+        except:
+            print('Could not load geojson')
     
-    if 'WW' in datafile:
-        datadate = features['properties']['advisoryDate']
-        location = reverseGeocode(coordinates=[features['geometry']['coordinates'][0][1], features['geometry']['coordinates'][0][0]])
-
-    elif 'TRACK' in datafile:
-        datadate = features['properties']['pubAdvTime']
-        location = reverseGeocode(coordinates=[features['geometry']['coordinates'][0][1], features['geometry']['coordinates'][0][0]])
-
-    #elif 'pts' in datafile:
-    #    print(features)
-
-    elif 'CONE' in datafile:
-        datadate = features['properties']['advisoryDate']
-        location = reverseGeocode(coordinates=[features['geometry']['coordinates'][0][0][1], features['geometry']['coordinates'][0][0][0]])
-
-    datadate_iso = f"{datadate.split(' ')[6]}-{params['months'][datadate.split(' ')[4]]}-{datadate.split(' ')[5]}"
-    #datadate_time = ':'.join(datadate.split(' ')[0:1])
-    
-    features_dict = {
+    if gj:
+        features = gj['features'][0]
+        datatype = datafile.split("_")[-1].split(".")[0]
+        datadate = features['properties'][params['datatype_mappings'][datatype]]
+        if datatype in ["WW", "TRACK"]:
+            lat = features['geometry']['coordinates'][0][1]
+            lon = features['geometry']['coordinates'][0][0]
+        elif datatype in ["CONE"]:
+            lat = features['geometry']['coordinates'][0][0][1]
+            lon = features['geometry']['coordinates'][0][0][0]
+        
+        location = reverseGeocode(coordinates=[lat, lon])
+        datadate_iso = f"{datadate.split(' ')[6]}-{params['months'][datadate.split(' ')[4]]}-{datadate.split(' ')[5]}"
+        datadate_time = ''.join(datadate.split(' ')[0:2])
+        datadate_time = params['hours'][datadate_time]
+        datadate_iso = f"{datadate_iso}{datadate_time}"
+        features_dict = {
             'state': location[0]['admin1'],
             'county': location[0]['admin2'],
             'storm_name': tropical_storm,
@@ -252,14 +292,13 @@ def get_features(params, tropical_storm, datafile):
             'storm_type': params[params['main_args']['year']][tropical_storm]['type'],
             'datadate_iso': datadate_iso,
             'year': datadate.split(' ')[6],
-            #'timezone': 'UTC',
+            'timezone': 'UTC',
             'datatype': datafile.split("_")[-1].split(".geojson")[0],
             }
     
     return features_dict
 
 def store_in_json(data, filename):
-    
     with open(f"{constants.output_dir}/{filename}.json", 'w') as f:
         json.dump(data, f)
 
