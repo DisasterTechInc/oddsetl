@@ -1,4 +1,5 @@
 from sys import version_info
+import preproc 
 import shutil
 import pytz
 import datetime as dt
@@ -139,6 +140,34 @@ def get_links(logger, url):
     return forecasts, tracks
 
 
+def get_stormspan_files(params, files):
+
+    first_active_files, last_active_files = [], []
+    
+    nums = []
+    filedict = {}
+    for myfile in files:
+        num = myfile.split('/')[-1].split("_")[1].split("_")[0]
+        suffixes = ["A", "Adv", "adv"]
+        for suffix in suffixes:
+            if suffix in num:
+                num = num.replace(suffix,"")
+        newnum = params['num_mappings'][num]
+        filedict[myfile] = newnum
+        nums.append(newnum)
+
+    if nums:
+        maxnum = max(list(set(nums)))
+        minnum = min(list(set(nums)))
+        
+        for myfile in files:
+            if maxnum == filedict[myfile]:
+                last_active_files.append(myfile)
+            if minnum == filedict[myfile]:
+                first_active_files.append(myfile)
+    
+    return first_active_files, last_active_files
+
 def convert_to_geojson(logger, params, directory, storm, is_active):
     """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
 
@@ -149,37 +178,6 @@ def convert_to_geojson(logger, params, directory, storm, is_active):
     listOfFiles = list(set(listOfFiles))
     files = [fi for fi in listOfFiles if fi.endswith(".kml") or fi.endswith(".shp")]
 
-    last_active_files = []
-    if not is_active:
-        # get last file of hurricane, for hurricanes that ended, to extract the end date and calculate "progress" metric.
-        nums = []
-        for myfile in files:
-            if '.shp' in myfile:
-                num = myfile.split('/')[-1].split("-")[-1].split("_")[0]
-            else:
-                num = myfile.split('/')[-1].split("_")[1].split("_")[0]
-       
-            suffixes = ["A", "Adv", "adv"]
-            for suffix in suffixes:
-                if suffix in num:
-                    num = num.replace(suffix,"")
-            newnum = params['num_mappings'][num] 
-            nums.append(newnum)
-        
-            if nums:
-                maxnums = max(list(set(nums)))
-            
-            for myfile in files:
-                if '.shp' in myfile:
-                    if str(maxnums) in str(myfile.split('/')[-1].split("_")[0].split("-")[-1]):
-                        last_active_files.append(myfile)
-                elif ".kml" in myfile:
-                    if str(maxnums) in str(myfile.split('/')[-1].split("-")[0].split("-")[-1]):
-                        last_active_files.append(myfile)
-                else:
-                    logger.info(f"No kml or shp file in {myfile}")
-
-    files = files + last_active_files
     for myfile in files:
         #newfile = myfile.split('/')[-1]
         if '.kml' in myfile:
@@ -201,19 +199,28 @@ def convert_to_geojson(logger, params, directory, storm, is_active):
         if ".geojson" in myfile:
             data_list.append(myfile)
     
-    return data_list, last_active_files
+    return data_list
 
 
-def get_last_active_day(params, tropical_storm, last_active_tracks):
-    for datafile in last_active_tracks:
-        features = get_features(params, tropical_storm, datafile)
+def get_storm_timeline(params, tropical_storm, is_active, files):
     
-    print(features)
-    print(last_active_tracks)
-    import pdb;pdb.set_trace()
-    last_active_day = features['datadate_iso']
+    storm_timeline = {}
+    first_active_files, last_active_files = get_stormspan_files(params, files)
 
-    return last_active_day 
+    for datafile in files:
+        storm_timeline[f"{constants.output_dir}/{datafile}"] = {}
+        with open(f"{constants.output_dir}/{datafile}") as f:
+            storm_data = json.load(f)
+            features = storm_data['features'][0]
+            datatype = datafile.split("_")[-1].split(".")[0]
+            date = features['properties'][params['datatype_mappings'][datatype]]
+            storm_timeline[f"{constants.output_dir}/{datafile}"]['UTCdatetime_iso'], storm_timeline['year'] = convert_EDTdate_to_isoformat(params, date)
+            storm_timeline[f"{constants.output_dir}/{datafile}"]['timezone'] = 'UTC'
+             
+    # iterate over the first and last files to get the first and latest active days
+    # storm_timeline['numdaysactive'] = lastday - firstday
+
+    return storm_timeline 
 
 
 def get_data_from_url(logger, upload, to_download, directory):
@@ -256,45 +263,49 @@ def reverseGeocode(coordinates):
     result = rg.search(coordinates) 
     return result
 
-def get_features(params, tropical_storm, datafile):
-    """."""    
-    
+def convert_EDTdate_to_isoformat(params, date):
+    datadate_iso = f"{date.split(' ')[6]}-{params['months'][date.split(' ')[4]]}-{date.split(' ')[5]}"
+    time = ''.join(date.split(' ')[0:2])
+    year = date.split(' ')[6]
+    time = params['hours'][time]
+    date_iso = f"{datadate_iso}{time}"
+    return date_iso, year
+
+def get_location(datatype, features):
+    if datatype in ["WW", "TRACK"]:
+        lat = features['geometry']['coordinates'][0][1]
+        lon = features['geometry']['coordinates'][0][0]
+    elif datatype in ["CONE"]:
+        lat = features['geometry']['coordinates'][0][0][1]
+        lon = features['geometry']['coordinates'][0][0][0]
+    location = reverseGeocode(coordinates=[lat, lon])
+    return location
+
+def get_storm_features(params, tropical_storm, storm_datafile, storm_timeline):
+    """."""   
+
+    with open(storm_datafile) as f:
+        storm_data = json.load(f)
+        timeline = storm_timeline[storm_datafile]
+
     features_dict = {}
-    gj = None
-    with open(datafile) as f:
-        try:
-            gj = geojson.load(f)
-        except:
-            print('Could not load geojson')
-    
-    if gj:
-        features = gj['features'][0]
-        datatype = datafile.split("_")[-1].split(".")[0]
-        datadate = features['properties'][params['datatype_mappings'][datatype]]
-        if datatype in ["WW", "TRACK"]:
-            lat = features['geometry']['coordinates'][0][1]
-            lon = features['geometry']['coordinates'][0][0]
-        elif datatype in ["CONE"]:
-            lat = features['geometry']['coordinates'][0][0][1]
-            lon = features['geometry']['coordinates'][0][0][0]
-        
-        location = reverseGeocode(coordinates=[lat, lon])
-        datadate_iso = f"{datadate.split(' ')[6]}-{params['months'][datadate.split(' ')[4]]}-{datadate.split(' ')[5]}"
-        datadate_time = ''.join(datadate.split(' ')[0:2])
-        datadate_time = params['hours'][datadate_time]
-        datadate_iso = f"{datadate_iso}{datadate_time}"
-        features_dict = {
-            'state': location[0]['admin1'],
-            'county': location[0]['admin2'],
-            'storm_name': tropical_storm,
-            'storm_region': params[params['main_args']['year']][tropical_storm]['code'][0:2],
-            'storm_code': params[params['main_args']['year']][tropical_storm]['code'],
-            'storm_type': params[params['main_args']['year']][tropical_storm]['type'],
-            'datadate_iso': datadate_iso,
-            'year': datadate.split(' ')[6],
-            'timezone': 'UTC',
-            'datatype': datafile.split("_")[-1].split(".geojson")[0],
-            }
+    features = storm_data['features'][0]
+    datatype = storm_datafile.split("_")[-1].split(".")[0]
+    location = get_location(datatype, features)
+    features_dict = {
+        'state': location[0]['admin1'],
+        'county': location[0]['admin2'],
+        'storm_name': tropical_storm,
+        'storm_region': params[params['main_args']['year']][tropical_storm]['code'][0:2],
+        'storm_code': params[params['main_args']['year']][tropical_storm]['code'],
+        'fcast_period_h': features['properties']['fcstpd'],
+        'storm_type': features['properties']['stormType'],
+        'UTCdatetime_iso': timeline['UTCdatetime_iso'],
+        'year': params['main_args']['year'],
+        'timezone': 'UTC', #storm_timeline['timezone'],
+        'datatype': datatype,
+        'first_active_day': '', # storm_timeline['first_active_day'],
+        'last_active_day': ''} #storm_timeline['last_active_day']}
     
     return features_dict
 
@@ -316,7 +327,8 @@ def insert_in_db(logger, creds, features):
     cursor = conn.cursor()
     guid = str(uuid.uuid4())
     q = f"INSERT INTO {creds['azure']['oddsdb_table']} (guid, datadate_iso, county, state, storm_name, storm_code, storm_type, year, storm_region, datatype) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);" 
-    cursor.execute(q, (guid, features['datadate_iso'], features['county'], features['state'], features['storm_name'], features['storm_code'], features['storm_type'], features['year'], features['storm_region'], features['datatype'],)) 
+    print(f"Executing query: {q}")
+    cursor.execute(q, (guid, features['UTCdatetime_iso'], features['county'], features['state'], features['storm_name'], features['storm_code'], features['storm_type'], features['year'], features['storm_region'], features['datatype'],)) 
     conn.commit()
     conn.close()
 

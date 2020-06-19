@@ -63,26 +63,35 @@ class Pipeline():
                         containerName = self.odds_container,
                         blobName = f"{filename}.json")
 
-            # get active storms
-            tropical_storms = helpers.get_active_storms(logger, url="https://www.nhc.noaa.gov/cyclones/")
+            # get active storms in 2020
+            active_tropical_storms = helpers.get_active_storms(logger, url="https://www.nhc.noaa.gov/cyclones/")
 
-            if all(value is False for value in tropical_storms.values()):
+            if all(value is False for value in active_tropical_storms.values()):
                 logger.info(" There are currently no active tropical storms in the Atlantic, Central North Pacific or Eastern North Pacific at this time.")
                 tropical_storms = [] 
             else:
+                logger.info(f'Active tropical storms are: {active_tropical_storms}')
+                tropical_storms = active_tropical_storms
                 active_ts = str(','.join(tropical_storms))
-                logger.info(f'Active tropical storms are: {tropical_storms}')
 
-            if self.storms_to_get != "active":
+            # get storms requested for year
+            if self.storms_to_get in ["active", "all"]:
                 tropical_storms = helpers.get_storms(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast.php?year={self.year}")
+            else:
+                tropical_storms = [self.storms_to_get.upper()]
 
             helpers.make_dirs(tropical_storms)
 
             if tropical_storms:
                 for tropical_storm in tropical_storms:
-                    code = params[str(self.year)][tropical_storm.upper()]['code']
+                    print(f'Processing storm {tropical_storm}')
+                    is_active = False
+                    if tropical_storm in active_tropical_storms:
+                        is_active = True
+                    storm_code = params[str(self.year)][tropical_storm.upper()]['code']
                     
-                    forecasts, tracks = helpers.get_links(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast_results.php?id={code}&year={self.year}&name=Tropical%{self.year[0:2]}Storm%{self.year[2:4]}{tropical_storm}")
+                    print("Retrieving forecast & track data...") 
+                    forecasts, tracks = helpers.get_links(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast_results.php?id={storm_code}&year={self.year}&name=Tropical%{self.year[0:2]}Storm%{self.year[2:4]}{tropical_storm}")
                     
                     helpers.get_data_from_url(logger,
                         self.upload, 
@@ -93,24 +102,37 @@ class Pipeline():
                         self.upload, 
                         to_download=tracks, 
                         directory=f'{constants.data_dir}/{tropical_storm.lower()}/tracks')
-                
+                    
+                    print("Unpacking data & converting to geojsons...")
                     forecasts = helpers.convert_to_geojson(logger,
                         params, 
                         directory=f'{constants.data_dir}/{tropical_storm.lower()}/forecasts', 
-                        storm=tropical_storm.lower())
+                        storm=tropical_storm.lower(),
+                        is_active=is_active)
                     
                     tracks = helpers.convert_to_geojson(logger,
                         params, 
                         directory=f'{constants.data_dir}/{tropical_storm.lower()}/tracks', 
-                        storm=tropical_storm.lower())
+                        storm=tropical_storm.lower(),
+                        is_active=is_active)
+                   
+                    storm_timeline = helpers.get_storm_timeline(params, 
+                            tropical_storm=tropical_storm,
+                            is_active=is_active,
+                            files=tracks)
                     
                     datatypes = {'forecasts': forecasts, 'tracks': tracks}
                     if self.upload:
                         for key in datatypes.keys():
                             data_lst = datatypes[key]
                             for datafile in data_lst:
-                                features = helpers.get_features(params, tropical_storm.upper(), f"{constants.output_dir}/{datafile}")
-                                filename = f"{datafile.split('_')[0]}_{features['datadate_iso']}_{'_'.join(datafile.split('_')[1:])}"
+                                print(f"Importing {datafile} to odds db")
+                                features = helpers.get_storm_features(params, 
+                                        tropical_storm = tropical_storm.upper(), 
+                                        storm_datafile = f"{constants.output_dir}/{datafile}",
+                                        storm_timeline = storm_timeline)
+                                #f"nhc_{features['UTCdatetime_iso']}_{tropical_storm}_{storm_timeline['completion']}_{features['datatype']}"
+                                filename = f"nhc_{features['UTCdatetime_iso']}_{tropical_storm}_{features['storm_type']}_{features['storm_region']}_{features['county']}_{features['state']}_{features['datatype']}"
                                 helpers.insert_in_db(logger, creds, features)
                                 helpers.store_blob_in_odds(logger, 
                                     params,

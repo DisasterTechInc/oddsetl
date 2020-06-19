@@ -42,12 +42,4 @@ class Pipeline():
         inputd.pop("crs")
         return inputd
 
-if __name__ == "__main__":
-
-    if os.path.exists(f'{constants.output_dir}/'):
-        shutil.rmtree(f'{constants.output_dir}/')
-    os.mkdir(f'{constants.output_dir}/')
-
-    pipeline = Pipeline(loggers = args.loggers, path_to_files = args.path_to_files)
-    pipeline.run()
 
