@@ -8,17 +8,19 @@ from config import logger_config, constants
 import geojson
 import json
 import mysql.connector
+from zipfile import ZipFile
 import requests, zipfile, io
 import reverse_geocoder as rg
 from bs4 import BeautifulSoup
 import subprocess
 import uuid
 from azure.storage.blob import BlobClient
-import logging
+import urllib.request
 
 def cleanup_the_house():
     shutil.rmtree(f'{constants.data_dir}/')
     shutil.rmtree(f'{constants.output_dir}/')
+
 
 def make_dirs(tropical_storms):
 
@@ -37,6 +39,7 @@ def make_dirs(tropical_storms):
             os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}/tracks')
 
     return
+
 
 def validate_inputs(params):
     """Validate inputs. """
@@ -168,6 +171,7 @@ def get_stormspan_files(params, files):
     
     return first_active_files, last_active_files
 
+
 def convert_to_geojson(logger, params, directory, storm, is_active):
     """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
 
@@ -179,13 +183,9 @@ def convert_to_geojson(logger, params, directory, storm, is_active):
     files = [fi for fi in listOfFiles if fi.endswith(".kml") or fi.endswith(".shp")]
 
     for myfile in files:
-        #newfile = myfile.split('/')[-1]
         if '.kml' in myfile:
-            #os.rename(myfile, f"{constants.output_dir}/nhc_{storm}_{newfile}")
-            #myfile = f"{constants.output_dir}/nhc_{storm}_{newfile}"
             bashCommand = f"k2g {myfile} {constants.output_dir}"
         elif ".shp" in myfile:
-            #filename = f"{constants.output_dir}/nhc_{storm}_{newfile}"
             bashCommand = f"ogr2ogr -f GeoJSON {constants.output_dir}/{myfile.split('/')[-1]} {myfile}"
         try:
             process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
@@ -202,6 +202,37 @@ def convert_to_geojson(logger, params, directory, storm, is_active):
     return data_list
 
 
+def convert_EDTdate_to_isoformat(params, date):
+    
+    date = date.replace("/", " ")
+    datesplit = date.split(" ")
+    time, year = None, None
+    if len(datesplit) == 3:
+        datadate_iso = f"{datesplit[0]}"
+        time = f"{datesplit[1]}"
+        year = f"20{datesplit[0][0:2]}"
+        timezone = f"{datesplit[2]}" 
+    elif len(datesplit) == 7:
+        datadate_iso = f"{date.split(' ')[6]}-{params['months'][date.split(' ')[4]]}-{date.split(' ')[5]}"
+        time = ''.join(date.split(' ')[0:2])
+        year = date.split(' ')[6]
+        timezone = ''
+    else:
+        print("Couldn't extract date, returning blank date")
+        datadate_iso = '_'
+        time = '_'
+        timezone = ''
+ 
+    if timezone in ["EDT","EST","AST"]:
+        time = params['hours'][time]
+    else:
+        time = f"{time}T"
+
+    date_iso = f"{datadate_iso}{time}_{timezone}"
+
+    return date_iso, year
+
+
 def get_storm_timeline(params, tropical_storm, is_active, files):
     
     storm_timeline = {}
@@ -213,17 +244,20 @@ def get_storm_timeline(params, tropical_storm, is_active, files):
             storm_data = json.load(f)
             features = storm_data['features'][0]
             datatype = datafile.split("_")[-1].split(".")[0]
-            date = features['properties'][params['datatype_mappings'][datatype]]
+            print(features['properties'])
+            if 'advisoryDate' in features['properties']:
+                date = 'advisoryDate'
+            else:
+                date = 'pubAdvTime' 
             storm_timeline[f"{constants.output_dir}/{datafile}"]['UTCdatetime_iso'], storm_timeline['year'] = convert_EDTdate_to_isoformat(params, date)
-            storm_timeline[f"{constants.output_dir}/{datafile}"]['timezone'] = 'UTC'
-             
+
     # iterate over the first and last files to get the first and latest active days
     # storm_timeline['numdaysactive'] = lastday - firstday
 
     return storm_timeline 
 
 
-def get_data_from_url(logger, upload, to_download, directory):
+def get_data_from_url(logger, params, upload, to_download, directory):
     """Given a list of links to download, get data from urls."""
 
     if upload == 'active':
@@ -232,12 +266,21 @@ def get_data_from_url(logger, upload, to_download, directory):
         else:
             to_download = [to_download[-1]] 
 
-    for link in to_download:
-        name = link.split("/")[-1].split(".")[0]
-        r = requests.get(link)
-        z = zipfile.ZipFile(io.BytesIO(r.content))
-        z.extractall(f'{directory}/{name}')
-    
+    for url in to_download:
+        status_code = requests.get(url).status_code
+        if status_code == 404:
+            #print(f'Url status code {status_code}: {url}')
+            url = f"https://www.nhc.noaa.gov/gis/archive/{params['main_args']['year']}/{url.split('/')[-1]}"
+            #print(f"Reverting to collecting data from {url}")
+            status_code = requests.get(url).status_code 
+        if status_code == 200:
+            try:
+                name = url.split("/")[-1].split(".")[0]
+                r = requests.get(url)
+                z = zipfile.ZipFile(io.BytesIO(r.content))
+                z.extractall(f'{directory}/{name}')
+            except Exception:
+                print(f'Could not retrieve {url}')
     return 
 
 def get_weather_outlooks(url):
@@ -262,14 +305,6 @@ def store_blob_in_odds(logger, params, datafile, token, connectionString, contai
 def reverseGeocode(coordinates): 
     result = rg.search(coordinates) 
     return result
-
-def convert_EDTdate_to_isoformat(params, date):
-    datadate_iso = f"{date.split(' ')[6]}-{params['months'][date.split(' ')[4]]}-{date.split(' ')[5]}"
-    time = ''.join(date.split(' ')[0:2])
-    year = date.split(' ')[6]
-    time = params['hours'][time]
-    date_iso = f"{datadate_iso}{time}"
-    return date_iso, year
 
 def get_location(datatype, features):
     if datatype in ["WW", "TRACK"]:
@@ -302,7 +337,6 @@ def get_storm_features(params, tropical_storm, storm_datafile, storm_timeline):
         'storm_type': features['properties']['stormType'],
         'UTCdatetime_iso': timeline['UTCdatetime_iso'],
         'year': params['main_args']['year'],
-        'timezone': 'UTC', #storm_timeline['timezone'],
         'datatype': datatype,
         'first_active_day': '', # storm_timeline['first_active_day'],
         'last_active_day': ''} #storm_timeline['last_active_day']}

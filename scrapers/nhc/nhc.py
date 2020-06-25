@@ -94,11 +94,13 @@ class Pipeline():
                     forecasts, tracks = helpers.get_links(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast_results.php?id={storm_code}&year={self.year}&name=Tropical%{self.year[0:2]}Storm%{self.year[2:4]}{tropical_storm}")
                     
                     helpers.get_data_from_url(logger,
+                        params,
                         self.upload, 
                         to_download=forecasts, 
                         directory=f'{constants.data_dir}/{tropical_storm.lower()}/forecasts')
                     
                     helpers.get_data_from_url(logger,
+                        params,
                         self.upload, 
                         to_download=tracks, 
                         directory=f'{constants.data_dir}/{tropical_storm.lower()}/tracks')
@@ -142,7 +144,7 @@ class Pipeline():
                                     containerName = self.odds_container, 
                                     blobName = f"{filename}.geojson")
 
-            helpers.cleanup_the_house()
+            #helpers.cleanup_the_house()
 
 
 if __name__ == "__main__":

@@ -1634,6 +1634,7 @@ months:
         'Nov': 11
         'Dec': 12
 
+
 hours:
         '100PM': 'T17:00' #'T13:00'
         '200PM': 'T18:00' #'T14:00'
@@ -1658,17 +1659,6 @@ hours:
         '900AM': 'T13:00' #'T09:00'
         '1000AM': 'T14:00' #'T10:00'
         '1100AM': 'T15:00' #'T11:00'
-        '1200AM': 'T16:00' #'T12:00' 
-
-datatype_mappings:
-        'WW': 'advisoryDate'
-        'TRACK': 'pubAdvTime'
-        'CONE': 'advisoryDate'
-        'lin': ''
-        'pts': ''
-        'pgn': ''
-
-
-
+        '1200AM': 'T16:00' #'T12:00'
 
 
