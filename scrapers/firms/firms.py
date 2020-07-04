@@ -35,7 +35,6 @@ class Pipeline():
        
         try:
             firmsfiles = helpers.get_message(con, creds)
-        
             if self.upload:
                 for firmsfile in firmsfiles:
                     firmsfile = f"{firmsfile.split('/')[-1].split('.')[0]}.geojson"
@@ -46,7 +45,7 @@ class Pipeline():
                         token = creds['TOKEN'], 
                         connectionString = creds['connectionString'], 
                         containerName = self.odds_container, 
-                        blobName = f"firms_{alert}.geojson") # todo: inject date into data if not already
+                        blobName = f"firms_{alert}.geojson") # todo: inject date into data 
         
         except:
             print(sys.exc_info()[1])
@@ -56,13 +55,10 @@ class Pipeline():
 
 if __name__ == "__main__":
     
-    if os.path.exists(f'{constants.output_dir}/'):
-        shutil.rmtree(f'{constants.output_dir}/')
-    if os.path.exists(f'{constants.data_dir}/'):
-        shutil.rmtree(f'{constants.data_dir}/')
-
-    os.mkdir(f'{constants.output_dir}/')
-    os.mkdir(f'{constants.data_dir}/')
+    if not os.path.exists(f'{constants.output_dir}/'):
+        os.mkdir(f'{constants.output_dir}/')
+    if not os.path.exists(f'{constants.data_dir}/'):
+        os.mkdir(f'{constants.data_dir}/')
 
     pipeline = Pipeline(
         loggers = args.loggers,
