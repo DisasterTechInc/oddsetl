@@ -16,9 +16,9 @@ default_args = {
 }
 
 dag = DAG(
-  'FIRMS-WILDFIRE-dag',
+  'FIRMS-SCRAPER-dag',
   default_args=default_args,
-  description='FIRMS WILDFIRE ALERTS',
+  description='NASA FIRMS SCRAPER',
   schedule_interval=timedelta(minutes=20),
 )
 
@@ -26,20 +26,12 @@ dag.doc_md = __doc__
 
 t1 = BashOperator(
   task_id='t1',
-  bash_command='source /home/iflament/ioenv/bin/activate',
+  bash_command="bash home/iflament/oddsetl/scrapers/firms/run.sh",
   dag=dag,
 )
 
-t2 = BashOperator(
-  task_id='t2',
-  bash_command="python3 home/iflament/oddsetl/scrapers/firms/firms.py",
-  dag=dag,
-)
-
-t2.doc_md = """
-#### DOCUMENTATION
+t1.doc_md = """
 """
 
 t1
-t2
 
