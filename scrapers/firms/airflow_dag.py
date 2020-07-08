@@ -26,7 +26,7 @@ dag.doc_md = __doc__
 
 t1 = BashOperator(
   task_id='t1',
-  bash_command="bash home/iflament/oddsetl/scrapers/firms/run.sh",
+  bash_command="bash /home/iflament/oddsetl/scrapers/firms/run.sh",
   dag=dag,
 )
 
