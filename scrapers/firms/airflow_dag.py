@@ -34,3 +34,5 @@ t1.doc_md = """
 #### DOCUMENTATION
 """
 
+t1
+
