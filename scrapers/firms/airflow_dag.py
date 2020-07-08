@@ -7,10 +7,10 @@ from airflow.utils.dates import days_ago
 default_args = {
   'owner' : 'airflow',
   'depends_on_past' : False,
-  'start_date' : days_ago(0),
+  'start_date' : days_ago(1),
   'email' : ['io@disastertech.com'],
   'email_on_failure' : True,
-  'email_on_retry' : True,
+  'email_on_retry' : False,
   'retries' : 1,
   'retry_delay': timedelta(minutes=15),
 }
@@ -32,7 +32,7 @@ t1 = BashOperator(
 
 t2 = BashOperator(
   task_id='t2',
-  bash_command="python3 home/iflament/oddsetl/scrapers/firms.py",
+  bash_command="python3 home/iflament/oddsetl/scrapers/firms/firms.py",
   dag=dag,
 )
 
