@@ -32,7 +32,7 @@ t1 = BashOperator(
 
 t2 = BashOperator(
   task_id='t2',
-  bash_command="python3 home/iflament/oddsetl/scrapers/firms.py",
+  bash_command="python3 home/iflament/oddsetl/scrapers/firms/firms.py",
   dag=dag,
 )
 
