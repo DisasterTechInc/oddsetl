@@ -1,0 +1,11 @@
+*__pycache__
+*.yaml
+*credentials.yaml
+*.csv
+*.zip
+*.geojson
+*.json
+*.kml
+*.kmz
+*.shp
+*.dat
