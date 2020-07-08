@@ -25,13 +25,12 @@ dag = DAG(
 dag.doc_md = __doc__
 
 t1 = BashOperator(
-  task_id='t2',
+  task_id='t1',
   bash_command="bash home/iflament/oddsetl/scrapers/firms/run.sh",
   dag=dag,
 )
 
 t1.doc_md = """
-#### DOCUMENTATION
 """
 
 t1
