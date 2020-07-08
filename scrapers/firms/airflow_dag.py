@@ -10,9 +10,9 @@ default_args = {
   'start_date' : days_ago(0),
   'email' : ['io@disastertech.com'],
   'email_on_failure' : True,
-  'email_on_retry' : False,
+  'email_on_retry' : True,
   'retries' : 1,
-  'retry_delay': timedelta(minutes=5),
+  'retry_delay': timedelta(minutes=15),
 }
 
 dag = DAG(
@@ -32,7 +32,7 @@ t1 = BashOperator(
 
 t2 = BashOperator(
   task_id='t2',
-  bash_command="python3 home/iflament/oddsetl/scrapers/firms.py --odds_container='firms'",
+  bash_command="python3 home/iflament/oddsetl/scrapers/firms.py",
   dag=dag,
 )
 
