@@ -1547,6 +1547,11 @@ all_nhc_storms: ['JIMENA',
   AMANDA:
     code: 'ep02'
     type: 'Tropical Storm'
+  CRISTINA:
+  DOLLY:
+  EDOUARD:
+  BORIS:
+  FOUR-E:
 
 
 num_mappings:

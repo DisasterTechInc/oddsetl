@@ -41,7 +41,7 @@ def make_dirs(tropical_storms):
     return
 
 
-def validate_inputs(params):
+def validate_inputs(logger, params):
     """Validate inputs. """
     errors = []
 
@@ -63,12 +63,15 @@ def validate_inputs(params):
     if type(params['main_args']['storms_to_get']) != str:
         errors.append('storms_to_get argument should be a string')
 
-    erroneous_storms = []
+    erroneous_storms, storms_to_get = [], []
     if params['main_args']['storms_to_get'] not in ["active", "all"]:
-        for storm in [params['main_args']['storms_to_get']]:
-            if storm.upper() not in params['all_nhc_storms']:
+        storms_to_get = params['main_args']['storms_to_get'].upper().replace(' ','').split(',')
+        for storm in storms_to_get:
+            if storm not in params['all_nhc_storms']:
                 erroneous_storms.append(storm)
                 errors.append(f"You are requesting data for storms that don't exist in NHC database: {erroneous_storms}!")
+    else:
+        storms_to_get = params['main_args']['storms_to_get']
 
     if type(params['main_args']['odds_container']) != str:
         errors.append('odds_container should be a string')
@@ -76,9 +79,9 @@ def validate_inputs(params):
     if params['main_args']['odds_container'] not in ["odds", "testcontainer", "nhc", "demos"]:
         errors.append('odds_container chosen is not allowed, please use "odds", "testcontainer", "nhc" or "demos" ')
     if errors:
-        logger.info(f'Error: {errors}')
+        logger(f'Error: {errors}')
 
-    return errors
+    return errors, storms_to_get
 
 
 def find_files(logger, url):
@@ -101,13 +104,15 @@ def get_active_storms(logger, url):
         contents.append(element.get_text())
 
     regions = ["Atlantic", "Central North Pacific", "Eastern North Pacific"]
-    active_storms = {}
-    for elem in contents:
-        for region in regions:
-            if f"no tropical cyclones in the {region}" in elem:
-                active_storms[region] = False
+    contents = str(contents).replace('\n','')
+    active_storm_regions = []
+    storms = [] 
+    for region in regions:
+        if not f"There are no tropical cyclones in the {region} at this time" in contents:
+           active_storm_regions.append(region) 
+           storms.append(contents.split("Satellite")[0].split("Tropical Storm ")[-1].strip(r"\n").upper())
 
-    return active_storms
+    return active_storm_regions, storms
 
 
 def get_storms(logger, url):
@@ -206,7 +211,8 @@ def convert_EDTdate_to_isoformat(params, date):
     
     date = date.replace("/", " ")
     datesplit = date.split(" ")
-    time, year = None, None
+    time, datadate_iso, timezone, year = '', '', '', None
+    
     if len(datesplit) == 3:
         datadate_iso = f"{datesplit[0]}"
         time = f"{datesplit[1]}"
@@ -216,11 +222,6 @@ def convert_EDTdate_to_isoformat(params, date):
         datadate_iso = f"{date.split(' ')[6]}-{params['months'][date.split(' ')[4]]}-{date.split(' ')[5]}"
         time = ''.join(date.split(' ')[0:2])
         year = date.split(' ')[6]
-        timezone = ''
-    else:
-        print("Couldn't extract date, returning blank date")
-        datadate_iso = '_'
-        time = '_'
         timezone = ''
  
     if timezone in ["EDT","EST","AST"]:
@@ -244,7 +245,7 @@ def get_storm_timeline(params, tropical_storm, is_active, files):
             storm_data = json.load(f)
             features = storm_data['features'][0]
             datatype = datafile.split("_")[-1].split(".")[0]
-            print(features['properties'])
+            
             if 'advisoryDate' in features['properties']:
                 date = 'advisoryDate'
             else:
@@ -280,7 +281,9 @@ def get_data_from_url(logger, params, upload, to_download, directory):
                 z = zipfile.ZipFile(io.BytesIO(r.content))
                 z.extractall(f'{directory}/{name}')
             except Exception:
-                print(f'Could not retrieve {url}')
+                logger.info(sys.exc_info()[1])
+                logger.info(f'Could not retrieve {url}')
+
     return 
 
 def get_weather_outlooks(url):
@@ -299,7 +302,6 @@ def store_blob_in_odds(logger, params, datafile, token, connectionString, contai
     with open(datafile, 'rb') as f:
         blob.upload_blob(f, overwrite=True)
 
-    headers = {"Authorization": "Bearer %s" %token, "content-type":"application/json"}
     logger.info(f"Upload successful to odds.{containerName}: {blobName}")
 
 def reverseGeocode(coordinates): 

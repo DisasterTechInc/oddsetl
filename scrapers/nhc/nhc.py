@@ -1,3 +1,4 @@
+import sys
 from config import logger_config, constants
 import logging
 import argparse
@@ -9,16 +10,16 @@ import logging.config
 logger = logging.getLogger(__name__)
 logging.config.dictConfig(logger_config)
 
-parser = argparse.ArgumentParser(description='pipeline')
+parser = argparse.ArgumentParser(description='NHC-scraper')
 parser.add_argument('--year', type=str, default='2020')
 parser.add_argument('--storms_to_get', type=str, default='active')
 parser.add_argument('--loggers', type=bool, default=True)
 parser.add_argument('--upload', type=bool, default=True)
-parser.add_argument('--odds_container', type=str, default='testcontainer')
+parser.add_argument('--odds_container', type=str, default='nhc')
 args = parser.parse_args()
 
 
-class Pipeline():
+class NHC():
     def __init__(self, loggers, year, upload, storms_to_get, odds_container):
         self.loggers = loggers
         self.year = year
@@ -27,10 +28,6 @@ class Pipeline():
         self.odds_container = odds_container
         logger.propagate = self.loggers
 
-        logger.info(f'\n Launching a new run... \n Collecting NHC data for year: {self.year}...')
-        if self.storms_to_get != '':
-            logger.info(f' Collecting data for a specific tropical storm: {self.storms_to_get} in year {self.year}')
- 
     def run(self):
         
         with open(constants.creds, 'r') as f:
@@ -40,8 +37,8 @@ class Pipeline():
             params = dict(yaml.safe_load(f.read()))
             params['main_args'] = {'upload': self.upload, 'year': self.year, 'storms_to_get': self.storms_to_get, 'odds_container': self.odds_container}
 
-        errors = helpers.validate_inputs(params)
-
+        errors, storms_to_get = helpers.validate_inputs(logger, params)
+        
         if not errors:
             filename = None
             if self.year == "2020":
@@ -63,34 +60,41 @@ class Pipeline():
                         containerName = self.odds_container,
                         blobName = f"{filename}.json")
 
-            # get active storms in 2020
-            active_tropical_storms = helpers.get_active_storms(logger, url="https://www.nhc.noaa.gov/cyclones/")
-
-            if all(value is False for value in active_tropical_storms.values()):
-                logger.info(" There are currently no active tropical storms in the Atlantic, Central North Pacific or Eastern North Pacific at this time.")
-                tropical_storms = [] 
+            storms, active_storms, active_storm_dict = [], [], {}
+            if self.year == "2020":
+                active_storm_regions, active_storms = helpers.get_active_storms(logger, url="https://www.nhc.noaa.gov/cyclones/")
+                if not active_storm_regions:
+                    logger.info(" There are currently no active tropical storms in the Atlantic, Central North Pacific or Eastern North Pacific at this time.")
+                else:
+                    logger.info(f"Active tropical storms: {active_storms}")
+                
+            if storms_to_get == "all":
+                print(f"All storms requested for year {self.year}")
+                storms = helpers.get_storms(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast.php?year={self.year}")
+            elif storms_to_get == "active":
+                print(f"Active storms requested for year {self.year}")
+                storms = active_storms  
             else:
-                logger.info(f'Active tropical storms are: {active_tropical_storms}')
-                tropical_storms = active_tropical_storms
-                active_ts = str(','.join(tropical_storms))
-
-            # get storms requested for year
-            if self.storms_to_get in ["active", "all"]:
-                tropical_storms = helpers.get_storms(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast.php?year={self.year}")
-            else:
-                tropical_storms = [self.storms_to_get.upper()]
-
-            helpers.make_dirs(tropical_storms)
-
-            if tropical_storms:
-                for tropical_storm in tropical_storms:
-                    print(f'Processing storm {tropical_storm}')
-                    is_active = False
-                    if tropical_storm in active_tropical_storms:
-                        is_active = True
+                print(f"Storms requested for year {self.year}: {storms_to_get}")
+                storms = storms_to_get
+                
+            # check if each storm is active
+            for storm in storms:
+                if storm in active_storms:
+                    active_storm_dict[storm] = True
+                else:
+                    active_storm_dict[storm] = False
+            
+            helpers.make_dirs(storms)
+            
+            if storms:
+                for tropical_storm in storms:
+                    logger.info(f'Launching data collection for {self.year} tropical storm: {tropical_storm}')
                     storm_code = params[str(self.year)][tropical_storm.upper()]['code']
+                    is_active = active_storm_dict[str(tropical_storm)]
+                    logger.info(f"Is storm currently active? {is_active}")
+                    logger.info("Retrieving forecast & track data...") 
                     
-                    print("Retrieving forecast & track data...") 
                     forecasts, tracks = helpers.get_links(logger, url=f"https://www.nhc.noaa.gov/gis/archive_forecast_results.php?id={storm_code}&year={self.year}&name=Tropical%{self.year[0:2]}Storm%{self.year[2:4]}{tropical_storm}")
                     
                     helpers.get_data_from_url(logger,
@@ -105,7 +109,7 @@ class Pipeline():
                         to_download=tracks, 
                         directory=f'{constants.data_dir}/{tropical_storm.lower()}/tracks')
                     
-                    print("Unpacking data & converting to geojsons...")
+                    logger.info("Unpacking data & converting to geojsons...")
                     forecasts = helpers.convert_to_geojson(logger,
                         params, 
                         directory=f'{constants.data_dir}/{tropical_storm.lower()}/forecasts', 
@@ -128,7 +132,7 @@ class Pipeline():
                         for key in datatypes.keys():
                             data_lst = datatypes[key]
                             for datafile in data_lst:
-                                print(f"Importing {datafile} to odds db")
+                                logger.info(f"Importing {datafile} to Azure")
                                 features = helpers.get_storm_features(params, 
                                         tropical_storm = tropical_storm.upper(), 
                                         storm_datafile = f"{constants.output_dir}/{datafile}",
@@ -144,12 +148,12 @@ class Pipeline():
                                     containerName = self.odds_container, 
                                     blobName = f"{filename}.geojson")
 
-            #helpers.cleanup_the_house()
+            helpers.cleanup_the_house()
 
 
 if __name__ == "__main__":
 
-    pipeline = Pipeline(
+    pipeline = NHC(
         loggers = args.loggers,
         year = args.year,
         upload = args.upload, 
