@@ -29,9 +29,11 @@ def get_email_message(logger, con, creds, input_dir, output_dir):
             raw_email_string = data[0][1].decode('utf-8')
             email_message = email.message_from_string(raw_email_string)
             # filter mail for spam - only download FIRMS alerts
+            sender = con.fetch(num, "(BODY[HEADER.FIELDS (FROM)])")
+            sender = str(sender[1][0][1].decode("utf-8")).split("From: <")[-1].split(">")[0]
             subject = str(email_message).split("Subject: ", 1)[1].split("\nTo:", 1)[0]
 
-            if 'FIRMS Rapid Alert' not in subject:
+            if 'FIRMS Rapid Alert' not in subject and sender != "noreply@nasa.gov":
                 logger.info(f'POSSIBLE EMAIL SPAM, email subject: {subject}')
             
             else:
@@ -83,7 +85,7 @@ def get_nrt_fire_alerts(logger, con, creds, upload, input_dir, output_dir):
                                    datafile=f"{output_dir}/{firmsalert_file}",
                                    token=creds['TOKEN'],
                                    connectionString=creds['connectionString'],
-                                   containerName='firms',
+                                   containerName='oddsetldevtest',
                                    blobName=f"firms_{alert}_latest_rapid_alerts.geojson")
 
     return
@@ -117,7 +119,7 @@ def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
                                        datafile=f"{output_dir}/{firefile}",
                                        token=creds['TOKEN'],
                                        connectionString=creds['connectionString'],
-                                       containerName='firms',
+                                       containerName='oddsetldevtest',
                                        blobName=f"firms_{datatype}_active_wildfire_24h.geojson")
    
     return
