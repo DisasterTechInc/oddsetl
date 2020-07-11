@@ -1,4 +1,3 @@
-#!/bin/bash
-source deactivate
-source activate /home/iflament/ioenv/bin/activate
-python3 /home/iflament/oddsetl/scrapers/firms/firms.py
+cd /home/dti/ETLPipelines/oddsetl/scrapers/firms/
+git checkout master
+python3 firms.py
