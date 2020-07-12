@@ -85,7 +85,7 @@ def get_nrt_fire_alerts(logger, con, creds, upload, input_dir, output_dir):
                                    datafile=f"{output_dir}/{firmsalert_file}",
                                    token=creds['TOKEN'],
                                    connectionString=creds['connectionString'],
-                                   containerName='oddsetldevtest',
+                                   containerName='firms',
                                    blobName=f"firms_{alert}_latest_rapid_alerts.geojson")
 
     return
@@ -119,7 +119,7 @@ def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
                                        datafile=f"{output_dir}/{firefile}",
                                        token=creds['TOKEN'],
                                        connectionString=creds['connectionString'],
-                                       containerName='oddsetldevtest',
+                                       containerName='firms',
                                        blobName=f"firms_{datatype}_active_wildfire_24h.geojson")
    
     return
