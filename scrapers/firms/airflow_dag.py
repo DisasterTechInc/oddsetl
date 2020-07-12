@@ -7,18 +7,18 @@ from airflow.utils.dates import days_ago
 default_args = {
   'owner' : 'airflow',
   'depends_on_past' : False,
-  'start_date' : days_ago(0),
+  'start_date' : days_ago(1),
   'email' : ['io@disastertech.com'],
   'email_on_failure' : True,
-  'email_on_retry' : True,
+  'email_on_retry' : False,
   'retries' : 1,
   'retry_delay': timedelta(minutes=15),
 }
 
 dag = DAG(
-  'FIRMS-WILDFIRE-dag',
+  'FIRMS-SCRAPER-dag',
   default_args=default_args,
-  description='FIRMS WILDFIRE ALERTS',
+  description='NASA FIRMS SCRAPER',
   schedule_interval=timedelta(minutes=20),
 )
 
@@ -26,20 +26,12 @@ dag.doc_md = __doc__
 
 t1 = BashOperator(
   task_id='t1',
-  bash_command='source /home/iflament/ioenv/bin/activate',
+  bash_command="bash /home/iflament/oddsetl/scrapers/firms/run.sh",
   dag=dag,
 )
 
-t2 = BashOperator(
-  task_id='t2',
-  bash_command="python3 home/iflament/oddsetl/scrapers/firms.py",
-  dag=dag,
-)
-
-t2.doc_md = """
-#### DOCUMENTATION
+t1.doc_md = """
 """
 
 t1
-t2
 
