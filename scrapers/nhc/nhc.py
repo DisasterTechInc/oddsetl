@@ -1,4 +1,5 @@
 import sys
+import shutil
 from config import logger_config, constants
 import logging
 import argparse
@@ -15,7 +16,7 @@ parser.add_argument('--year', type=str, default='2020')
 parser.add_argument('--storms_to_get', type=str, default='active')
 parser.add_argument('--loggers', type=bool, default=True)
 parser.add_argument('--upload', type=bool, default=True)
-parser.add_argument('--odds_container', type=str, default='nhc')
+parser.add_argument('--odds_container', type=str, default='oddsetldevtest')
 args = parser.parse_args()
 
 
@@ -40,6 +41,14 @@ class NHC():
         errors, storms_to_get = helpers.validate_inputs(logger, params)
         
         if not errors:
+            if os.path.exists(f'{constants.output_dir}/'):
+                shutil.rmtree(f'{constants.output_dir}/')
+            if os.path.exists(f'{constants.data_dir}/'):
+                shutil.rmtree(f'{constants.data_dir}/')
+
+            os.mkdir(f'{constants.output_dir}/')
+            os.mkdir(f'{constants.data_dir}/')
+
             filename = None
             if self.year == "2020":
                 # get weather outlooks
@@ -139,7 +148,7 @@ class NHC():
                                         storm_timeline = storm_timeline)
                                 #f"nhc_{features['UTCdatetime_iso']}_{tropical_storm}_{storm_timeline['completion']}_{features['datatype']}"
                                 filename = f"nhc_{features['UTCdatetime_iso']}_{tropical_storm}_{features['storm_type']}_{features['storm_region']}_{features['county']}_{features['state']}_{features['datatype']}"
-                                helpers.insert_in_db(logger, creds, features)
+                                #helpers.insert_in_db(logger, creds, features)
                                 helpers.store_blob_in_odds(logger, 
                                     params,
                                     datafile = f"{constants.output_dir}/{datafile}", 

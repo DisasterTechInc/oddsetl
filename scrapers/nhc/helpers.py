@@ -1,5 +1,4 @@
 from sys import version_info
-import preproc 
 import shutil
 import pytz
 import datetime as dt
@@ -24,14 +23,6 @@ def cleanup_the_house():
 
 def make_dirs(tropical_storms):
 
-    if os.path.exists(f'{constants.output_dir}/'):
-        shutil.rmtree(f'{constants.output_dir}/')
-    if os.path.exists(f'{constants.data_dir}/'):
-        shutil.rmtree(f'{constants.data_dir}/')
-
-    os.mkdir(f'{constants.output_dir}/')
-    os.mkdir(f'{constants.data_dir}/')
-    
     for tropical_storm in tropical_storms:
         if not os.path.exists(f'{constants.data_dir}/{tropical_storm.lower()}'):
             os.mkdir(f'{constants.data_dir}/{tropical_storm.lower()}')
@@ -76,10 +67,10 @@ def validate_inputs(logger, params):
     if type(params['main_args']['odds_container']) != str:
         errors.append('odds_container should be a string')
 
-    if params['main_args']['odds_container'] not in ["odds", "testcontainer", "nhc", "demos"]:
+    if params['main_args']['odds_container'] not in ["oddsetldevtest", "nhc", "demos"]:
         errors.append('odds_container chosen is not allowed, please use "odds", "testcontainer", "nhc" or "demos" ')
     if errors:
-        logger(f'Error: {errors}')
+        logger.info(f'Error: {errors}')
 
     return errors, storms_to_get
 

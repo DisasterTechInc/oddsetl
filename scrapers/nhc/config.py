@@ -5,6 +5,8 @@ _curr_dir = os.path.dirname(os.path.realpath(__file__))
 _constants = {
     'params': os.path.join(_curr_dir, 'params.yaml'),
     'creds': os.path.join(_curr_dir, 'credentials.yaml'),
+    'ssl_key': os.path.join(_curr_dir, 'key.pem'),
+    'ssl_cert': os.path.join(_curr_dir, 'cert.pem'),
     'data_dir': os.path.join(_curr_dir, 'data'),
     'output_dir': os.path.join(_curr_dir, 'output'),
 }

@@ -1548,11 +1548,68 @@ all_nhc_storms: ['JIMENA',
     code: 'ep02'
     type: 'Tropical Storm'
   CRISTINA:
+    code: 'ep05'
+    type: 'Tropical Storm'
   DOLLY:
+    code: 'al04'
+    type: 'Tropical Storm'
   EDOUARD:
+    code: 'al05'
+    type: 'Tropical Storm'
   BORIS:
+    code: 'ep03'
+    type: 'Tropical Storm'
   FOUR-E:
-
+    code: 'Tropical Depression'
+    type: 'ep04'
+  FAY:
+    code: 'Tropical Storm'
+    type: 'al06'
+  GONZALO:
+    code:
+    type:
+  HANNA:
+    code:
+    type:
+  JOSEPHINE:
+    code:
+    type:
+  ISAIAS:
+    code:
+    type:
+  KYLE:
+    code:
+    type:
+  LAURA:
+    code:
+    type:
+  MARCO:
+    code:
+    type:
+  NANA:
+    code:
+    type:
+  OMAR:
+    code:
+    type:
+  PAULETTE:
+    code:
+    type:
+  RENE:
+    code:
+    type:
+  SALLY:
+    code:
+    type:
+  TEDDY:
+    code:
+    type:
+  VICKY:
+    code:
+    type:
+  WILFRED:
+    code:
+    type:
 
 num_mappings:
     '001': 1
