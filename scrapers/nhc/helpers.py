@@ -203,7 +203,8 @@ def convert_EDTdate_to_isoformat(params, date):
     date = date.replace("/", " ")
     datesplit = date.split(" ")
     time, datadate_iso, timezone, year = '', '', '', None
-    
+    print(datesplit)
+
     if len(datesplit) == 3:
         datadate_iso = f"{datesplit[0]}"
         time = f"{datesplit[1]}"
@@ -321,10 +322,10 @@ def get_storm_features(params, tropical_storm, storm_datafile, storm_timeline):
     datatype = storm_datafile.split("_")[-1].split(".")[0]
     location = get_location(datatype, features)
     features_dict = {
-        'state': location[0]['admin1'],
-        'county': location[0]['admin2'],
-        'storm_name': tropical_storm,
-        'storm_region': params[params['main_args']['year']][tropical_storm]['code'][0:2],
+        'state': location[0]['admin1'].replace(" ",""),
+        'county': location[0]['admin2'].replace(" ",""),
+        'storm_name': tropical_storm.replace(" ",""),
+        'storm_region': params[params['main_args']['year']][tropical_storm]['code'][0:2].replace(" ",""),
         'storm_code': params[params['main_args']['year']][tropical_storm]['code'],
         'fcast_period_h': features['properties']['fcstpd'],
         'storm_type': features['properties']['stormType'],

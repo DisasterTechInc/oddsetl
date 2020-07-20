@@ -1,1 +1,1 @@
-python3 nhc.py --storms_to_get='all' --year="2020" --odds_container='nhc'  
+python3 nhc.py --storms_to_get='sandy' --year="2012" --odds_container='oddsetldevtest'  

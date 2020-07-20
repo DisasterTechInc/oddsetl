@@ -146,7 +146,6 @@ class NHC():
                                         tropical_storm = tropical_storm.upper(), 
                                         storm_datafile = f"{constants.output_dir}/{datafile}",
                                         storm_timeline = storm_timeline)
-                                #f"nhc_{features['UTCdatetime_iso']}_{tropical_storm}_{storm_timeline['completion']}_{features['datatype']}"
                                 filename = f"nhc_{features['UTCdatetime_iso']}_{tropical_storm}_{features['storm_type']}_{features['storm_region']}_{features['county']}_{features['state']}_{features['datatype']}"
                                 #helpers.insert_in_db(logger, creds, features)
                                 helpers.store_blob_in_odds(logger, 
