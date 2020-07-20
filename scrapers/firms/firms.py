@@ -44,19 +44,6 @@ class FIRMS():
             logger.info(sys.exc_info()[1])
             logger.info('Could not retrieve active wildfire data')
     
-        con = imaplib.IMAP4_SSL('imap.googlemail.com')
-        try:
-            logger.info('Retrieving RAPID alerts....')
-            helpers.get_nrt_fire_alerts(logger=logger,
-                                        con=con, 
-                                        creds=creds, 
-                                        upload=self.upload, 
-                                        input_dir=constants.alerts_input, 
-                                        output_dir=constants.alerts_output)
-        except Exception:
-            logger.info(sys.exc_info()[1])
-            logger.info('Could not retrieve rapid alerts')
-
         helpers.cleanup_the_house()
 
 

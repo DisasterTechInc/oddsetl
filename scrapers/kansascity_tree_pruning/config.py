@@ -5,7 +5,6 @@ _curr_dir = os.path.dirname(os.path.realpath(__file__))
 _constants = {
     'params': os.path.join(_curr_dir, 'params.yaml'),
     'creds': os.path.join(_curr_dir, 'credentials.yaml'),
-    # Setup and Declarations:
 }
 
 constants = (namedtuple('Constants', _constants)(**_constants))
