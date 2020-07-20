@@ -44,11 +44,9 @@ df = pd.DataFrame.from_records(results)
 request_types = list(df['request_type'].unique())
 tree_requests = [k for k in request_types if 'Trees-Trimming-Block Pruning' in k]
 df = df[df.request_type.isin(tree_requests)]
-df = df[['case_id', 'request_type',
-       'type', 'detail', 'creation_date', 
-       'status', 'exceeded_est_timeframe',
-       'street_address', 'zip_code', 'neighborhood',
-       'ycoordinate', 'xcoordinate', 'case_url', 'days_open',
+df['address'] = df['street_address'] + ' ' + df['zip_code']
+df = df[['request_type', 'creation_date', 'status', 
+       'address', 'ycoordinate', 'xcoordinate', 'case_url', 'days_open',
        'closed_date']]
 df = df.rename(columns={'xcoordinate': 'Lat', 'ycoordinate': 'Lon'})
 geojsonout = df_to_geojson(df)
@@ -58,6 +56,6 @@ store_blob_in_odds(geojsonbytes,
         token = creds['TOKEN'],
         connectionString = creds['connectionString'],
         containerName = "hexstream",
-        blobName = f"hexstream_kstrees.json")
+        blobName = f"hexstream_kansascity_tree-pruning.json")
 
 
