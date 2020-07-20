@@ -3,19 +3,20 @@ import os
 import shutil
 
 def cleanup_the_house():
+    """Remove all data from data and output dirs and children dirs."""
     shutil.rmtree(f'{constants.data_dir}/')
     shutil.rmtree(f'{constants.output_dir}/')
 
 def make_data_dirs(dirs):
-
+    """Given a list of data directories, create empty childrent data dirs"""
     for directory in dirs:
         if not os.path.exists(f'{constants.data_dir}/{directory.lower()}'):
+            os.mkdir(f'{constants.data_dir}/{directory.lower()}')
 
     return
 
 def store_blob_in_odds(data, token, connectionString, containerName, blobName):
     """Store json files in db."""
-
     blob = BlobClient.from_connection_string(conn_str=connectionString, container_name=containerName, blob_name=blobName)
     blob.upload_blob(data, overwrite=True)
     print(f'Data uploaded in Azure: {blobName}')
@@ -23,6 +24,7 @@ def store_blob_in_odds(data, token, connectionString, containerName, blobName):
     return
 
 def df_to_geojson(df, properties, lat='latitude', lon='longitude'):
+    """ Convert a pandas dataframe to a geojson."""
     geojson = {'type':'FeatureCollection', 'features':[]}
     for _, row in df.iterrows():
         feature = {'type':'Feature',
