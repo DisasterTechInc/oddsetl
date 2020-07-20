@@ -6,9 +6,6 @@ _constants = {
     'params': os.path.join(_curr_dir, 'params.yaml'),
     'creds': os.path.join(_curr_dir, 'credentials.yaml'),
     # Setup and Declarations:
-    'data_dir': "/home/dti/data/",
-    'git_dir': "/home/dti/data/COVID-19/JHU",
-    'daily_reports': "/home/dti/data/COVID-19/JHU/csse_covid_19_data/csse_covid_19_daily_reports/"
 }
 
 constants = (namedtuple('Constants', _constants)(**_constants))
