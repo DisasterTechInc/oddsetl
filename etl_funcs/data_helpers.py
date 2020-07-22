@@ -29,9 +29,9 @@ def ESRIshp_to_geojson(inputpath, output_dir):
     outputpath = f"{output_dir}/{inputpath.split('/')[-1].split('.')[0]}.geojson"
     bash_command = f"ogr2ogr -f GeoJSON -t_srs crs:84 {outputpath} {inputpath}"
     print(bash_command)
-    remove_crs(path=outputpath)
     process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
     output, error = process.communicate()
+    remove_crs(path=outputpath)
 
     return
 
