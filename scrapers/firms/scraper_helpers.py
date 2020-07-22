@@ -1,8 +1,10 @@
-import requests 
+import sys
+sys.path.append('../../')
+import requests
 import zipfile
-import io  # no joke 
+import io  # no joke
 import os
-from etl_funcs import data_helpers, db_helpers
+from etl_funcs import db_helpers, file_helpers
 
 
 def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):

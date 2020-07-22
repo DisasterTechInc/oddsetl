@@ -1,10 +1,11 @@
+import sys
+sys.path.append('../../')
 from config import logger_config, constants, data_urls
 import logging
 import argparse
 import logging.config
-import sys
 import scraper_helpers
-from etl_funcs import db_helpers, file_helpers 
+from etl_funcs import db_helpers, file_helpers
 logger = logging.getLogger(__name__)
 logging.config.dictConfig(logger_config)
 
@@ -23,7 +24,7 @@ class FIRMS():
     def run(self):
         dirs_lst = [constants.activefires_input, constants.activefires_output, constants.alerts_input, constants.alerts_output]
         file_helpers.make_dirs(dirs_lst)
-        creds = db_helpers.get_credentials()
+        creds = db_helpers.get_credentials(constants)
          
         try:
             logger.info('Retrieving Active fires....')
