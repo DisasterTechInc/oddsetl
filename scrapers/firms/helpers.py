@@ -9,7 +9,18 @@ import email
 import subprocess
 from datetime import datetime
 from config import constants
+import json
 
+def remove_crs(path):
+
+    with open(path, 'r') as f:
+        data = json.load(f)
+
+    data.pop('crs', None)
+    with open(path, 'w') as f:
+        json.dump(data, f)
+
+    return 
 
 def get_email_message(logger, con, creds, input_dir, output_dir):
     """Get email messages from gmail Inbox"""
@@ -115,6 +126,7 @@ def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
                 convert_to_geojson(logger, inputfile=f"{input_dir}/{name}/{firefile}", output_dir=output_dir)
                 if upload:
                     firefile = f"{firefile.split('/')[-1].split('.')[0]}.geojson"
+                    remove_crs(path=f"{output_dir}/{firefile}")
                     store_blob_in_odds(logger=logger,
                                        datafile=f"{output_dir}/{firefile}",
                                        token=creds['TOKEN'],
