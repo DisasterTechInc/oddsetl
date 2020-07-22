@@ -1,4 +1,4 @@
-from config import logger_config, constants
+from config import logger_config, constants, data_urls
 import logging
 import argparse
 import yaml
@@ -7,6 +7,7 @@ import logging.config
 import imaplib; imaplib.Debug=True
 import os
 import sys
+from utils import utils
 from datetime import datetime
 logger = logging.getLogger(__name__)
 logging.config.dictConfig(logger_config)
@@ -24,26 +25,22 @@ class FIRMS():
         logger.propagate = logger
        
     def run(self):
-
-        with open(constants.creds, 'r') as f:
-            creds = dict(yaml.safe_load(f.read()))
-       
-        urls = ['https://firms.modaps.eosdis.nasa.gov/data/active_fire/c6/shapes/zips/MODIS_C6_USA_contiguous_and_Hawaii_24h.zip',
-                'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/shapes/zips/SUOMI_VIIRS_C2_USA_contiguous_and_Hawaii_24h.zip',
-                'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/shapes/zips/J1_VIIRS_C2_USA_contiguous_and_Hawaii_24h.zip'] 
+        creds = utils.get_credentials()
+         
         try:
             logger.info('Retrieving Active fires....')
             helpers.get_active_wildfire(logger=logger,
-                                        urls=urls, 
+                                        urls=data_urls, 
                                         creds=creds,
                                         upload=self.upload,
                                         input_dir=constants.activefires_input, 
                                         output_dir=constants.activefires_output)
         except Exception:
+            logger.info(sys.exc_info()[0])
             logger.info(sys.exc_info()[1])
             logger.info('Could not retrieve active wildfire data')
     
-        helpers.cleanup_the_house()
+        utils.cleanup_the_house()
 
 
 if __name__ == "__main__":

@@ -2,25 +2,11 @@ import sys
 import requests 
 import zipfile
 import io  # no joke 
-from azure.storage.blob import BlobClient
-import shutil
 import os
+from utils import utils
 import email
-import subprocess
 from datetime import datetime
-from config import constants
-import json
 
-def remove_crs(path):
-
-    with open(path, 'r') as f:
-        data = json.load(f)
-
-    data.pop('crs', None)
-    with open(path, 'w') as f:
-        json.dump(data, f)
-
-    return 
 
 def get_email_message(logger, con, creds, input_dir, output_dir):
     """Get email messages from gmail Inbox"""
@@ -62,7 +48,7 @@ def get_email_message(logger, con, creds, input_dir, output_dir):
                             fp.write(part.get_payload(decode=True))
                             fp.close()
                         logger.info(f'Converting file {filePath}')
-                        convert_to_geojson(logger, inputfile=filePath, output_dir=output_dir)
+                        utils.convert_to_geojson(logger, inputfile=filePath, output_dir=output_dir)
                         firmsfiles.append(f"firms_{fileName.split('.')[0]}")
     
     finally:
@@ -92,7 +78,7 @@ def get_nrt_fire_alerts(logger, con, creds, upload, input_dir, output_dir):
                 alert = f"{firmsalert_file.split('_')[-1].split('.')[0]}"
            
                 logger.info(f"Importing latest {firmsalert_file} rapid alerts to odds db")
-                store_blob_in_odds(logger=logger,
+                utils.store_blob_in_odds(logger=logger,
                                    datafile=f"{output_dir}/{firmsalert_file}",
                                    token=creds['TOKEN'],
                                    connectionString=creds['connectionString'],
@@ -104,12 +90,13 @@ def get_nrt_fire_alerts(logger, con, creds, upload, input_dir, output_dir):
 
 def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
     """Given a list of links to download, get data from urls."""
-
-    for url in urls:
-        status_code = requests.get(url).status_code
+   
+    for name, url in urls._asdict().items():
+        logger.info(f"Fetching {name} FIRMS data at {url}...")
+        status_code = requests.get(str(url)).status_code
+        logger.info(f'Url status code {status_code}: {url}')
         if status_code == 404:
-            logger.info(f'Url status code {status_code}: {url}')
-            status_code = requests.get(url).status_code
+            status_code = requests.get(str(url)).status_code
         if status_code == 200:
             try:
                 name = url.split("/")[-1].split(".")[0]
@@ -123,53 +110,15 @@ def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
             files = [f for f in os.listdir(f"{input_dir}/{name}") if f.endswith('.shp')] 
             for firefile in files:
                 datatype = '_'.join(firefile.split("_")[0:2])
-                convert_to_geojson(logger, inputfile=f"{input_dir}/{name}/{firefile}", output_dir=output_dir)
+                utils.convert_to_geojson(logger, inputfile=f"{input_dir}/{name}/{firefile}", output_dir=output_dir)
                 if upload:
                     firefile = f"{firefile.split('/')[-1].split('.')[0]}.geojson"
-                    remove_crs(path=f"{output_dir}/{firefile}")
-                    store_blob_in_odds(logger=logger,
+                    utils.remove_crs(path=f"{output_dir}/{firefile}")
+                    utils.store_blob_in_odds(logger=logger,
                                        datafile=f"{output_dir}/{firefile}",
                                        token=creds['TOKEN'],
                                        connectionString=creds['connectionString'],
                                        containerName='oddsetldevtest',
                                        blobName=f"firms_{datatype}_active_wildfire_24h.geojson")
    
-    return
-
-
-def cleanup_the_house():
-    """Flush data & output dirs."""
-    
-    shutil.rmtree(f'{constants.alerts_input}')
-    shutil.rmtree(f'{constants.alerts_output}')
-    shutil.rmtree(f'{constants.activefires_input}')
-    shutil.rmtree(f'{constants.activefires_output}')
-    return
-
-
-def convert_to_geojson(logger, inputfile, output_dir):
-    """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
-    
-    bash_command = None 
-    if "kml" in inputfile:
-        bash_command = f"k2g {inputfile} {output_dir}"
-    if "shp" in inputfile:
-        bash_command = f"ogr2ogr -f GeoJSON {output_dir}/{inputfile.split('/')[-1].split('.')[0]}.geojson {inputfile}"    
-        
-    logger.info(f'executing file conversion bash command: {bash_command}')
-    process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
-    output, error = process.communicate()
-
-    return
-
-
-def store_blob_in_odds(logger, datafile, token, connectionString, containerName, blobName):
-    """Store json files in db."""
-
-    blob = BlobClient.from_connection_string(conn_str=connectionString, container_name=containerName, blob_name=blobName)
-    with open(f"{datafile}", 'rb') as f:
-        blob.upload_blob(f, overwrite=True)
-
-    logger.info(f"Upload successful to odds.{containerName}: {blobName}")
-
     return
