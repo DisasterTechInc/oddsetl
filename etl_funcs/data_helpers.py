@@ -23,7 +23,7 @@ def kml_to_geojson(inputpath, output_dir):
     return
 
 
-def ESRIshp_to_geojson(inputpath, output_dir):
+def shp_to_geojson(inputpath, output_dir):
     """Convert an ESRI shapefile to a geojson file, and save in output dir."""
     
     outputpath = f"{output_dir}/{inputpath.split('/')[-1].split('.')[0]}.geojson"
