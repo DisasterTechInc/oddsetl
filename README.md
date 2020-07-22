@@ -1,2 +1,1 @@
-# oddsetl
-Open Disaster Data Store ETL
+DTI ODDSETL: repository for ETL and Data Science components.
