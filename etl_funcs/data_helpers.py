@@ -26,11 +26,10 @@ def kml_to_geojson(filename, output_dir):
 
 def esrishp_to_geojson(filename, output_dir):
     """Convert a kml or shapefile to a geojson file, and output in corresponding datadir."""
-
-     # to do: assert file is a shapefile
-     bash_command = f"ogr2ogr -f GeoJSON {output_dir}/{filename}.geojson {inputfile}"
-     process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
-     output, error = process.communicate()
+    # to do: assert file is a shapefile
+    bash_command = f"ogr2ogr -f GeoJSON {output_dir}/{filename}.geojson {inputfile}"
+    process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
+    output, error = process.communicate()
 
     return
 
