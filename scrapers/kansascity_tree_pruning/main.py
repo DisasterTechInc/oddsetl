@@ -48,7 +48,7 @@ df['address'] = df['street_address'] + ' ' + df['zip_code']
 df = df[['request_type', 'creation_date', 'status', 
        'address', 'ycoordinate', 'xcoordinate', 'case_url', 'days_open',
        'closed_date']]
-df = df.rename(columns={'xcoordinate': 'Lat', 'ycoordinate': 'Lon'})
+df = df.rename(columns={'ycoordinate': 'Lat', 'xcoordinate': 'Lon'})
 geojsonout = df_to_geojson(df)
 geojsonstring = str(geojsonout).replace("'",'"').replace("nan","0")
 geojsonbytes = bytes(geojsonstring, 'utf-8')
