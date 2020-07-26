@@ -34,7 +34,7 @@ def df_to_geojson(df):
                    'properties':{},
                    'geometry':{'type':'Point',
                                'coordinates':[]}}
-        feature['geometry']['coordinates'] = [float(row['Lon']),float(row['Lat'])]
+        feature['geometry']['coordinates'] = [float(row['xcoordinate']),float(row['ycoordinate'])]
         for prop in df.keys().to_list():
             feature['properties'][prop] = row[prop]
         geojson['features'].append(feature)
@@ -48,7 +48,6 @@ df['address'] = df['street_address'] + ' ' + df['zip_code']
 df = df[['request_type', 'creation_date', 'status', 
        'address', 'ycoordinate', 'xcoordinate', 'case_url', 'days_open',
        'closed_date']]
-df = df.rename(columns={'ycoordinate': 'Lat', 'xcoordinate': 'Lon'})
 geojsonout = df_to_geojson(df)
 geojsonstring = str(geojsonout).replace("'",'"').replace("nan","0")
 geojsonbytes = bytes(geojsonstring, 'utf-8')
@@ -56,6 +55,6 @@ store_blob_in_odds(geojsonbytes,
         token = creds['TOKEN'],
         connectionString = creds['connectionString'],
         containerName = "hexstream",
-        blobName = f"hexstream_kansascity_tree-pruning.json")
+        blobName = f"hexstream_kansascity_tree-pruning.geojson")
 
 
