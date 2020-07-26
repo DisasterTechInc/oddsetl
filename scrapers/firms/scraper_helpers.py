@@ -2,10 +2,9 @@ import requests
 import zipfile
 import io  # no joke
 import os
-from etl_funcs import db_helpers, data_helpers
 import sys
 sys.path.append('../../')
-
+from etl_funcs import db_helpers, data_helpers
 
 def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
     """Given a list of links to download, get data from urls."""
@@ -29,14 +28,12 @@ def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
             files = [f for f in os.listdir(f"{input_dir}/{name}") if f.endswith('.shp')]
             for firefile in files:
                 datatype = '_'.join(firefile.split("_")[0:2])
-                data_helpers.ESRIshp_to_geojson(filename=f"{input_dir}/{name}/{firefile}", output_dir=output_dir)
+                data_helpers.shp_to_geojson(inputpath=f"{input_dir}/{name}/{firefile}", output_dir=output_dir)
                 if upload:
                     firefile = f"{firefile.split('/')[-1].split('.')[0]}.geojson"
                     data_helpers.remove_crs(path=f"{output_dir}/{firefile}")
-                    db_helpers.store_blob_in_odds(logger=logger,
-                                                  datafile=f"{output_dir}/{firefile}",
-                                                  token=creds['TOKEN'],
-                                                  connectionString=creds['connectionString'],
+                    db_helpers.store_blob_in_odds(datafile=f"{output_dir}/{firefile}",
+                                                  creds=creds,
                                                   containerName='oddsetldevtest',
                                                   blobName=f"firms_{datatype}_active_wildfire_24h.geojson")
 
