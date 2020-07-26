@@ -1,11 +1,11 @@
 from config import logger_config, constants, data_urls
-from etl_funcs import db_helpers, file_helpers
 import logging
 import logging.config
 import scraper_helpers
 import argparse
 import sys
 sys.path.append('../../')
+from etl_funcs import db_helpers, file_helpers
 logger = logging.getLogger(__name__)
 logging.config.dictConfig(logger_config)
 
