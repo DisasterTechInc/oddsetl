@@ -10,12 +10,11 @@ def get_credentials(constants):
     return creds
     
 
-def store_blob_in_odds(datafile, creds, containerName, blobName, content_type):
+def store_blob_in_odds(datafile, creds, containerName, blobName):
     """Store json files in db."""
 
     blob = BlobClient.from_connection_string(conn_str=creds['connectionString'], container_name=containerName, blob_name=blobName)
     with open(f"{datafile}", 'rb') as f:
-        my_content_settings = ContentSettings(content_type)
-        blob.upload_blob(f, overwrite=True, content_settings=my_content_settings)
+        blob.upload_blob(f, overwrite=True)
 
     return
