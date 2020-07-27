@@ -31,7 +31,6 @@ class SPC():
         args = {'upload': self.upload, 'odds_container': self.odds_container}
         file_helpers.make_dirs(dir_lst=['output'])
         watches = scraper_helpers.get_thunderstorm_watches(logger, url="https://www.spc.noaa.gov/products/watch/")
-        print(watches)
         watches = scraper_helpers.get_watch_report(watches)
        
         if self.upload:
@@ -40,13 +39,15 @@ class SPC():
                 db_helpers.store_blob_in_odds(datafile=f"{constants.output_dir}/{report}",
                                               creds=creds,
                                               containerName=self.odds_container,
-                                              blobName=report)
+                                              blobName=report,
+                                              content_type='text/html')
            
             scraper_helpers.wrap_in_html(watches)
             db_helpers.store_blob_in_odds(datafile=f"watches.html",
                                           creds=creds,
                                           containerName=self.odds_container,
-                                          blobName="watch_list.html")
+                                          blobName="watch_list.html",
+                                          content_type='text/html')
 
         
         file_helpers.cleanup_the_house(dir_lst=['output'])

@@ -60,9 +60,10 @@ def wrap_in_html(watches):
     summaries = []
     for watch in watches:
        summaries.append(watches[watch]['summary'])
-
-    for tag in soup.find_all(id="0"):
-        tag.string.replace_with('\n\n'.join(summaries))
+    
+    if summaries:
+        for tag in soup.find_all(id="0"):
+            tag.string.replace_with('\n\n'.join(summaries))
 
     new_text = soup.prettify()
     new_text = new_text.encode("ascii", "ignore")
@@ -79,21 +80,23 @@ def get_watch_report(watches):
   
     for watch in watches.keys():
         url = watches[watch]['link']
-        watches[watch]['summary'] = 'There are currently no severe thunderstorm watches in this region' 
+        watches[watch]['summary'] = 'No current convective watches in effect.' 
+        request = None
         if 'http' in url:
-            soup = BeautifulSoup(requests.get(url).text, features="html.parser")
-            report_contents = []
+            request = requests.get(url)
+            if request.status_code == 200:
+                soup = BeautifulSoup(requests.get(url).text, features="html.parser")
+                report_contents = []
+                for element in soup.find_all('pre'):
+                    element = element.get_text()
+                    element = element.split("URGENT - IMMEDIATE BROADCAST REQUESTED")[-1].split("OTHER WATCH INFORMATION...")[0]
+                    element = element.replace("&&", "")
+                    report_contents.append(element)
+                    summary = element.split("SUMMARY")[-1].split("PRECAUTIONARY/PREPAREDNESS ACTIONS...")[0] 
+                    watches[watch]['summary'] = summary
 
-            for element in soup.find_all('pre'):
-                element = element.get_text()
-                element = element.split("URGENT - IMMEDIATE BROADCAST REQUESTED")[-1].split("OTHER WATCH INFORMATION...")[0]
-                element = element.replace("&&", "")
-                report_contents.append(element)
-                summary = element.split("SUMMARY")[-1].split("PRECAUTIONARY/PREPAREDNESS ACTIONS...")[0] 
-                watches[watch]['summary'] = summary
-
-            text_file = open(f"{constants.output_dir}/watch_report_{watch}.txt", "w")
-            text_file.write(str(' \n\n\n'.join(report_contents)))
-            text_file.close()
+                text_file = open(f"{constants.output_dir}/watch_report_{watch}.txt", "w")
+                text_file.write(str(' \n\n\n'.join(report_contents)))
+                text_file.close()
     
     return watches 
