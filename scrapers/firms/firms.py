@@ -1,10 +1,10 @@
-import sys
-sys.path.append('../../')
 from config import logger_config, constants, data_urls
 import logging
-import argparse
 import logging.config
 import scraper_helpers
+import argparse
+import sys
+sys.path.append('../../')
 from etl_funcs import db_helpers, file_helpers
 logger = logging.getLogger(__name__)
 logging.config.dictConfig(logger_config)
@@ -20,30 +20,30 @@ class FIRMS():
         self.loggers = loggers
         self.upload = upload
         logger.propagate = logger
-       
+
     def run(self):
         dirs_lst = [constants.activefires_input, constants.activefires_output, constants.alerts_input, constants.alerts_output]
         file_helpers.make_dirs(dirs_lst)
         creds = db_helpers.get_credentials(constants)
-         
+
         try:
             logger.info('Retrieving Active fires....')
             scraper_helpers.get_active_wildfire(logger=logger,
-                                           urls=data_urls, 
-                                           creds=creds,
-                                           upload=self.upload,
-                                           input_dir=constants.activefires_input, 
-                                           output_dir=constants.activefires_output)
+                                                urls=data_urls,
+                                                creds=creds,
+                                                upload=self.upload,
+                                                input_dir=constants.activefires_input,
+                                                output_dir=constants.activefires_output)
         except Exception:
             logger.info(sys.exc_info()[0])
             logger.info(sys.exc_info()[1])
             logger.info('Could not retrieve active wildfire data')
-    
-        file_helpers.cleanup_the_house()
+
+        file_helpers.cleanup_the_house(dirs_lst)
 
 
 if __name__ == "__main__":
-    
+
     pipeline = FIRMS(
         loggers=args.loggers,
         upload=args.upload)
