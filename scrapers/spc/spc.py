@@ -2,6 +2,8 @@ import os
 from config import logger_config, constants
 import logging
 import argparse
+import yaml
+import shutil
 import datetime
 import scraper_helpers
 import logging.config
@@ -28,7 +30,9 @@ class SPC():
     def run(self):
 
         creds = db_helpers.get_credentials(constants)
-        args = {'upload': self.upload, 'odds_container': self.odds_container}
+        with open(constants.params, 'r') as f:
+            params = dict(yaml.safe_load(f.read()))
+        args = {'upload': self.upload, 'odds_container': self.odds_container, 'relevant_counties': params['relevant_counties']}
         file_helpers.make_dirs(dir_lst=['output'])
         watches = scraper_helpers.get_thunderstorm_watches(logger, url="https://www.spc.noaa.gov/products/watch/")
         watches = scraper_helpers.get_watch_report(watches)
@@ -49,9 +53,15 @@ class SPC():
                                           blobName="watch_list.html",
                                           content_type='text/html')
 
-        
-        file_helpers.cleanup_the_house(dir_lst=['output'])
+            if os.path.exists("watch_counties.geojson"):
+                db_helpers.store_blob_in_odds(datafile=f"watch_counties.geojson",
+                                          creds=creds,
+                                          containerName=self.odds_container,
+                                          blobName="watch_counties.geojson",
+                                          content_type='geojson')
+                os.remove("watch_counties.geojson")
 
+        file_helpers.cleanup_the_house(dir_lst=['output'])
 
 if __name__ == "__main__":
 
