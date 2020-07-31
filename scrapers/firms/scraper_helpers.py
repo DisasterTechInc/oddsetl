@@ -35,6 +35,7 @@ def get_active_wildfire(logger, urls, creds, upload, input_dir, output_dir):
                     db_helpers.store_blob_in_odds(datafile=f"{output_dir}/{firefile}",
                                                   creds=creds,
                                                   containerName='oddsetldevtest',
-                                                  blobName=f"firms_{datatype}_active_wildfire_24h.geojson")
+                                                  blobName=f"firms_{datatype}_active_wildfire_24h.geojson",
+                                                  content_type='geojson')
 
     return
